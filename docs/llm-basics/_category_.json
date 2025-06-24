@@ -1,0 +1,8 @@
+{
+  "label": "LLM基础",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "学习大语言模型的基本原理、使用方法与应用。"
+  }
+}

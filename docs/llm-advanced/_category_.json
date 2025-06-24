@@ -1,0 +1,8 @@
+{
+  "label": "LLM进阶",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "探索LLM的微调、伦理与前沿趋势。"
+  }
+}
