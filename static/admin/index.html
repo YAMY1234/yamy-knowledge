@@ -91,6 +91,19 @@
           
           if (authData) {
             updateDebugStatus('✅ 发现 localStorage 认证信息: ' + authData);
+            
+            // 尝试解析认证信息，如果包含 code 而不是 token，清除它
+            try {
+              const parsed = JSON.parse(authData);
+              if (parsed.code && !parsed.token) {
+                updateDebugStatus('⚠️ 发现的是 authorization code，需要清除以重新认证');
+                localStorage.removeItem('netlify-cms-auth');
+                localStorage.removeItem('netlify-cms-user');
+                updateDebugStatus('已清除无效的认证信息');
+              }
+            } catch (e) {
+              updateDebugStatus('解析认证信息时出错: ' + e.message);
+            }
           } else {
             updateDebugStatus('❌ localStorage 中没有认证信息');
           }
@@ -146,14 +159,39 @@
             // 处理字符串格式的消息
             if (typeof event.data === 'string' && event.data.startsWith('authorization:github:success')) {
               updateDebugStatus('✅ 收到认证成功消息（字符串格式）！');
-              setTimeout(() => {
-                updateDebugStatus('正在重新加载页面...');
-                location.reload();
-              }, 1000);
+              
+              // 尝试解析认证数据
+              try {
+                const authDataStr = event.data.replace('authorization:github:success:', '');
+                const authData = JSON.parse(authDataStr);
+                updateDebugStatus('解析到认证数据: ' + JSON.stringify(authData));
+                
+                // 手动触发 CMS 重新初始化
+                if (typeof CMS !== 'undefined' && CMS.init) {
+                  updateDebugStatus('手动重新初始化 CMS...');
+                  setTimeout(() => {
+                    try {
+                      CMS.init();
+                      updateDebugStatus('CMS 重新初始化完成');
+                    } catch (e) {
+                      updateDebugStatus('CMS 重新初始化失败: ' + e.message);
+                      location.reload();
+                    }
+                  }, 500);
+                } else {
+                  updateDebugStatus('正在重新加载页面...');
+                  setTimeout(() => location.reload(), 1000);
+                }
+              } catch (e) {
+                updateDebugStatus('解析认证数据失败: ' + e.message);
+                setTimeout(() => location.reload(), 1000);
+              }
             }
             // 处理对象格式的消息
             else if (typeof event.data === 'object' && event.data.type === 'authorization:github:success') {
               updateDebugStatus('✅ 收到认证成功消息（对象格式）！');
+              updateDebugStatus('认证数据: ' + JSON.stringify(event.data));
+              
               setTimeout(() => {
                 updateDebugStatus('正在重新加载页面...');
                 location.reload();
