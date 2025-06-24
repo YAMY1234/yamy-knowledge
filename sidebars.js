@@ -43,6 +43,17 @@ const sidebars = {
       items: [
         'llm-infra/training-infrastructure',
         'llm-infra/inference-optimization',
+        {
+          type: 'category',
+          label: '推理优化详解',
+          items: [
+            'llm-infra/inference-optimization/model-compression',
+            'llm-infra/inference-optimization/batching-strategies',
+            'llm-infra/inference-optimization/hardware-acceleration',
+            'llm-infra/inference-optimization/caching-strategies',
+            'llm-infra/inference-optimization/pipeline-optimization',
+          ],
+        },
         'llm-infra/model-deployment',
         'llm-infra/distributed-parallelism',
       ],
