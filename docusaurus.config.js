@@ -28,7 +28,7 @@ const config = {
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: 'YAMY1234', // Usually your GitHub org/user name.
-  projectName: 'yamy-docs', // Usually your repo name.
+  projectName: 'yamy-knowledge', // Usually your repo name.
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -51,7 +51,7 @@ const config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/YAMY1234/yamy-docs/tree/main/',
+            'https://github.com/YAMY1234/yamy-knowledge/tree/main/',
         },
         blog: {
           showReadingTime: true,
@@ -62,7 +62,7 @@ const config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/YAMY1234/yamy-docs/tree/main/',
+            'https://github.com/YAMY1234/yamy-knowledge/tree/main/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -101,7 +101,7 @@ const config = {
             target: '_blank',
           },
           {
-            href: 'https://github.com/YAMY1234/yamy-docs',
+            href: 'https://github.com/YAMY1234/yamy-knowledge',
             label: 'GitHub',
             position: 'right',
           },
@@ -132,7 +132,7 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/YAMY1234/yamy-docs',
+                href: 'https://github.com/YAMY1234/yamy-knowledge',
               },
               {
                 label: '在线编辑',
