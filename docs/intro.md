@@ -5,11 +5,11 @@ sidebar_position: 1
 
 # LLM 教程简介
 
-欢迎来到大语言模型（LLM, Large Language Model）教程！
+欢迎来到大语言模型(LLM, Large Language Model)教程！
 
 ## 什么是大语言模型？
 
-大语言模型（LLM）是一类基于深度学习的人工智能模型，能够理解和生成自然语言文本。代表性模型包括 OpenAI 的 GPT、Meta 的 Llama、Google 的 BERT 等。
+大语言模型(LLM)是一类基于深度学习的人工智能模型，能够理解和生成自然语言文本。代表性模型包括 OpenAI 的 GPT、Meta 的 Llama、Google 的 BERT 等。
 
 ## 应用场景
 - 智能问答与对话系统
