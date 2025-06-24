@@ -5,7 +5,7 @@
   <title>GitHub Authentication</title>
   <script>
     // Decap CMS 认证处理脚本
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
       // 获取 URL 参数
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
@@ -13,6 +13,19 @@
       const error = params.get('error');
       
       console.log('Auth page loaded with params:', { code, state, error });
+      console.log('Current URL:', window.location.href);
+      
+      // 更新页面内容显示调试信息
+      const statusElement = document.querySelector('p');
+      if (statusElement) {
+        statusElement.innerHTML = `
+          <strong>认证页面已加载</strong><br>
+          Code: ${code ? code.substring(0, 15) + '...' : '无'}<br>
+          State: ${state || '无'}<br>
+          Error: ${error || '无'}<br>
+          正在处理...
+        `;
+      }
       
       if (error) {
         console.error('Authentication error:', error);
@@ -33,55 +46,66 @@
         console.log('Window opener closed:', window.opener ? window.opener.closed : 'N/A');
         
         // 显示认证成功信息
-        document.querySelector('p').innerHTML = `
-          <strong>认证成功！</strong><br>
-          Code: ${code.substring(0, 10)}...<br>
-          State: ${state}<br>
-          正在处理认证信息...
-        `;
+        const statusElement = document.querySelector('p');
+        if (statusElement) {
+          statusElement.innerHTML = `
+            <strong>✅ 认证成功！</strong><br>
+            Code: ${code.substring(0, 10)}...<br>
+            State: ${state}<br>
+            Window opener: ${window.opener ? '存在' : '不存在'}<br>
+            正在处理认证信息...
+          `;
+        }
         
-        // 发送认证成功消息给父窗口
-        if (window.opener && !window.opener.closed) {
-          // 尝试多种消息格式，确保 CMS 能接收到
-          try {
-            // Decap CMS 期望的格式
+        // 无论是否有父窗口，都先尝试存储认证信息并跳转
+        console.log('Storing auth data and redirecting...');
+        
+        try {
+          // 存储认证信息到 localStorage
+          const authData = {
+            provider: 'github',
+            code: code,
+            state: state,
+            timestamp: Date.now()
+          };
+          
+          localStorage.setItem('netlify-cms-auth', JSON.stringify(authData));
+          console.log('Auth data stored to localStorage');
+          
+          // 如果有父窗口，尝试发送消息
+          if (window.opener && !window.opener.closed) {
+            console.log('Sending message to parent window...');
+            
+            // 发送多种格式的消息
             window.opener.postMessage(
-              'authorization:github:success:' + JSON.stringify({
-                provider: 'github',
-                code: code,
-                state: state
-              }), 
+              'authorization:github:success:' + JSON.stringify(authData), 
               window.location.origin
             );
             
-            // 备用格式
             window.opener.postMessage({
               type: 'authorization:github:success',
-              provider: 'github',
-              code: code,
-              state: state
+              ...authData
             }, window.location.origin);
             
-            console.log('Messages sent to parent window');
+            console.log('Messages sent, waiting before closing...');
             
-            // 稍等一下再关闭窗口
             setTimeout(() => {
+              console.log('Closing popup window');
               window.close();
-            }, 1000);
-          } catch (e) {
-            console.error('Failed to send message:', e);
-            // 如果发送消息失败，跳转回 admin
-            window.location.href = '/admin/';
+            }, 2000);
+          } else {
+            console.log('No parent window or parent closed, redirecting directly');
+            // 直接跳转到 admin 页面
+            setTimeout(() => {
+              window.location.href = '/admin/';
+            }, 2000);
           }
-        } else {
-          // 如果没有父窗口，跳转回 admin 并携带认证信息
-          console.log('No parent window, redirecting to admin with auth data');
-          const authDataEncoded = btoa(JSON.stringify({
-            provider: 'github',
-            code: code,
-            state: state
-          }));
-          window.location.href = '/admin/#auth=' + authDataEncoded;
+        } catch (e) {
+          console.error('Error in auth processing:', e);
+          // 出错时也跳转回 admin
+          setTimeout(() => {
+            window.location.href = '/admin/';
+          }, 2000);
         }
       } else {
         // 没有认证码，需要开始认证流程
@@ -98,7 +122,7 @@
           window.location.href = githubUrl;
         }
       }
-    })();
+    });
   </script>
 </head>
 <body>
