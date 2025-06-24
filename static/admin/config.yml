@@ -3,11 +3,13 @@ backend:
   name: github
   repo: YAMY1234/yamy-knowledge  # 替换为你的 GitHub 仓库
   branch: main
-  # 关键配置：避免跳转到 Netlify API
+  # 关键配置：避免跳转到 Netlify API  
   base_url: https://yamy-knowledge.vercel.app
   site_domain: yamy-knowledge.vercel.app
   # GitHub OAuth App Client ID
   client_id: "Ov23lisJIWDlWIG2mY4u"
+  # 明确指定认证URL路径
+  auth_endpoint: auth
 
 # 本地开发配置
 # backend:

@@ -45,46 +45,84 @@
   <script>
     // 处理认证回调
     (function() {
+      // 检查URL参数
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      const error = urlParams.get('error');
+      
+      console.log("认证页面加载，参数:", { code, state, error, url: window.location.href });
+      
+      if (error) {
+        console.error("GitHub 认证失败:", error);
+        document.querySelector('h2').textContent = "认证失败";
+        document.querySelector('p').textContent = "GitHub 认证被拒绝或出现错误: " + error;
+        setTimeout(() => {
+          window.location.href = '/admin/';
+        }, 5000);
+        return;
+      }
+      
+      if (code) {
+        console.log("收到认证码，准备处理...");
+        document.querySelector('h2').textContent = "认证成功！";
+        document.querySelector('p').textContent = "正在登录到编辑器...";
+        
+        // 构建认证成功的消息
+        const authData = {
+          code: code,
+          state: state,
+          provider: 'github'
+        };
+        
+        // 如果是弹窗打开的，发送消息给父窗口
+        if (window.opener && !window.opener.closed) {
+          console.log("向父窗口发送认证成功消息");
+          try {
+            window.opener.postMessage(
+              'authorization:github:success:' + JSON.stringify(authData),
+              window.location.origin
+            );
+            window.close();
+          } catch (e) {
+            console.error("发送消息失败:", e);
+            window.location.href = '/admin/#' + btoa(JSON.stringify(authData));
+          }
+        } else {
+          // 直接跳转到 admin 页面，携带认证信息
+          console.log("直接跳转到 admin 页面");
+          window.location.href = '/admin/#' + btoa(JSON.stringify(authData));
+        }
+      } else {
+        // 没有认证码，显示调试信息
+        console.log("没有收到认证码，可能是首次访问认证页面");
+        document.querySelector('h2').textContent = "等待 GitHub 认证...";
+        document.querySelector('p').innerHTML = `
+          <strong>调试信息：</strong><br>
+          当前 URL: ${window.location.href}<br>
+          是否有 code 参数: ${code ? '是' : '否'}<br>
+          是否有 state 参数: ${state ? '是' : '否'}<br>
+          <br>
+          如果长时间停留在此页面，请检查 GitHub OAuth App 的回调URL设置
+        `;
+        
+        // 等待更长时间，给用户看调试信息
+        setTimeout(() => {
+          window.location.href = '/admin/';
+        }, 10000);
+      }
+      
+      // 监听来自 admin 页面的消息
       function receiveMessage(e) {
-        console.log("收到认证消息:", e);
-        if (e.data === "authorizing:github" && window.opener) {
-          // 认证开始
+        console.log("收到消息:", e.data, "来源:", e.origin);
+        if (e.data === "authorizing:github") {
           console.log("GitHub 认证开始");
+          document.querySelector('h2').textContent = "正在跳转到 GitHub...";
+          document.querySelector('p').textContent = "请在弹出的 GitHub 页面中授权";
         }
       }
       
       window.addEventListener("message", receiveMessage, false);
-      
-      // 如果有认证码，直接跳转回 admin
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const state = urlParams.get('state');
-      
-      if (code) {
-        console.log("收到认证码，跳转回管理后台...");
-        // 构建认证成功的消息
-        const authData = {
-          code: code,
-          state: state
-        };
-        
-        // 如果是弹窗打开的，发送消息给父窗口
-        if (window.opener) {
-          window.opener.postMessage(
-            'authorization:github:success:' + JSON.stringify(authData),
-            window.location.origin
-          );
-          window.close();
-        } else {
-          // 直接跳转到 admin 页面
-          window.location.href = '/admin/';
-        }
-      } else {
-        // 没有认证码，可能需要重新认证
-        setTimeout(() => {
-          window.location.href = '/admin/';
-        }, 3000);
-      }
     })();
   </script>
 </body>
