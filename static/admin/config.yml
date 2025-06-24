@@ -3,6 +3,10 @@ backend:
   name: github
   repo: YAMY1234/yamy-knowledge  # 替换为你的 GitHub 仓库
   branch: main
+  # 使用 GitHub App 认证 - 如果不工作，请创建 GitHub OAuth App
+  auth_type: pkce-implicit
+  # 如果使用 OAuth App，请取消注释下面这行并填入你的 Client ID
+  # client_id: "你的GitHub OAuth App Client ID"
 
 # 本地开发配置
 # backend:
