@@ -75,24 +75,56 @@
           provider: 'github'
         };
         
-        // 如果是弹窗打开的，发送消息给父窗口
+        // 使用多种方式确保 CMS 能接收到认证信息
+        console.log("处理认证成功，准备通知 CMS");
+        
+        // 方法1: 通过 postMessage 发送给可能的父窗口
         if (window.opener && !window.opener.closed) {
           console.log("向父窗口发送认证成功消息");
           try {
+            // 尝试多种消息格式
             window.opener.postMessage(
               'authorization:github:success:' + JSON.stringify(authData),
               window.location.origin
             );
-            window.close();
+            window.opener.postMessage({
+              type: 'authorization:github:success',
+              data: authData
+            }, window.location.origin);
+            
+            setTimeout(() => {
+              window.close();
+            }, 1000);
           } catch (e) {
             console.error("发送消息失败:", e);
-            window.location.href = '/admin/#' + btoa(JSON.stringify(authData));
           }
-        } else {
-          // 直接跳转到 admin 页面，携带认证信息
-          console.log("直接跳转到 admin 页面");
-          window.location.href = '/admin/#' + btoa(JSON.stringify(authData));
         }
+        
+        // 方法2: 使用 localStorage 存储认证信息
+        try {
+          localStorage.setItem('netlify-cms-auth', JSON.stringify({
+            provider: 'github',
+            token: code, // 临时使用 code 作为标识
+            ...authData
+          }));
+          console.log("认证信息已存储到 localStorage");
+        } catch (e) {
+          console.error("localStorage 存储失败:", e);
+        }
+        
+        // 方法3: 使用 sessionStorage 作为备份
+        try {
+          sessionStorage.setItem('decap-cms-auth', JSON.stringify(authData));
+          console.log("认证信息已存储到 sessionStorage");
+        } catch (e) {
+          console.error("sessionStorage 存储失败:", e);
+        }
+        
+        // 方法4: 跳转回 admin 页面，让页面重新加载
+        setTimeout(() => {
+          console.log("跳转回 admin 页面");
+          window.location.href = '/admin/';
+        }, 2000);
               } else {
           // 没有认证码，需要跳转到 GitHub 进行认证
           console.log("没有收到认证码，准备跳转到 GitHub 认证");

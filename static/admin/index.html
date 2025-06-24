@@ -78,10 +78,49 @@
       
       // 暂时不执行任何隐藏操作
       
+      // 检查认证状态
+      function checkAuthStatus() {
+        // 检查 localStorage 中的认证信息
+        try {
+          const authData = localStorage.getItem('netlify-cms-auth');
+          const sessionAuth = sessionStorage.getItem('decap-cms-auth');
+          
+          if (authData) {
+            updateDebugStatus('发现 localStorage 认证信息: ' + authData);
+          }
+          if (sessionAuth) {
+            updateDebugStatus('发现 sessionStorage 认证信息: ' + sessionAuth);
+          }
+          
+          // 检查 URL hash 中的认证信息
+          if (window.location.hash) {
+            updateDebugStatus('URL hash: ' + window.location.hash);
+          }
+        } catch (e) {
+          updateDebugStatus('检查认证状态失败: ' + e.message);
+        }
+      }
+      
       // 初始化 CMS
       function initCMS() {
         try {
           updateDebugStatus('正在初始化 CMS 配置...');
+          
+          // 先检查认证状态
+          checkAuthStatus();
+          
+          // 监听认证消息
+          window.addEventListener('message', function(event) {
+            updateDebugStatus('收到消息: ' + JSON.stringify(event.data));
+            if (typeof event.data === 'string' && event.data.startsWith('authorization:github:success')) {
+              updateDebugStatus('收到认证成功消息！');
+              // 重新初始化 CMS
+              setTimeout(() => {
+                location.reload();
+              }, 1000);
+            }
+          });
+          
           updateDebugStatus('配置已准备，启动 CMS...');
           
           // 使用外部配置文件 config.yml，不传入内联配置
