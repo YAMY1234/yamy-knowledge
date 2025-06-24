@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YAMY 知识库 - 在线编辑器</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f5f5f5;
+      }
+      .cms-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      .cms-header h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+      }
+      .cms-header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+      }
+      #nc-root {
+        margin-top: 20px;
+      }
+      .debug-info {
+        background: #f0f0f0;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        color: #666;
+      }
+      
+      /* 暂时不隐藏任何元素，保持原始界面 */
+    </style>
+  </head>
+  <body>
+    <div class="cms-header">
+      <h1>✍️ YAMY 知识库编辑器</h1>
+      <p>在线编辑 Markdown 文档，自动同步到 GitHub</p>
+    </div>
+    <div id="nc-root"></div>
+    <div class="debug-info">
+      <strong>调试信息：</strong>
+      <div id="debug-status">正在加载 CMS...</div>
+    </div>
+    <script src="/admin/vendor/decap-cms.js"></script>
+    <script>
+      // 调试函数
+      function updateDebugStatus(message) {
+        const debugDiv = document.getElementById('debug-status');
+        if (debugDiv) {
+          debugDiv.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + message;
+        }
+        console.log(message);
+      }
+      
+      // 等待 CMS 加载完成
+      function waitForCMS() {
+        if (typeof CMS !== 'undefined') {
+          updateDebugStatus('✅ Decap CMS 已加载');
+          initCMS();
+        } else {
+          updateDebugStatus('⏳ 等待 CMS 加载...');
+          setTimeout(waitForCMS, 500);
+        }
+      }
+      
+      // 暂时不执行任何隐藏操作
+      
+      // 初始化 CMS
+      function initCMS() {
+        try {
+          updateDebugStatus('正在初始化 CMS 配置...');
+          updateDebugStatus('配置已准备，启动 CMS...');
+          
+          // 使用外部配置文件 config.yml，不传入内联配置
+          CMS.init();
+          
+          updateDebugStatus('✅ CMS 初始化完成！现在应该可以看到编辑器界面了。');
+          
+        } catch (error) {
+          updateDebugStatus('❌ CMS 初始化失败: ' + error.message);
+          console.error('CMS 初始化错误:', error);
+        }
+      }
+      
+      // 页面加载完成后开始检查
+      document.addEventListener('DOMContentLoaded', function() {
+        updateDebugStatus('页面已加载，开始检查 CMS...');
+        waitForCMS();
+      });
+    </script>
+  </body>
+</html> 

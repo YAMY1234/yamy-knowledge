@@ -28,3 +28,12 @@
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+/* 自定义 CMS 链接样式 */
+.cms-link {
+  cursor: pointer !important;
+}
+
+.cms-link:hover {
+  text-decoration: none !important;
+}
