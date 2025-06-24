@@ -31,195 +31,39 @@
       #nc-root {
         margin-top: 20px;
       }
-      .debug-info {
-        background: #f0f0f0;
-        padding: 10px;
-        margin: 10px;
-        border-radius: 5px;
-        font-size: 12px;
-        color: #666;
-      }
-      
-      /* 暂时不隐藏任何元素，保持原始界面 */
     </style>
+    <!-- Netlify Identity Widget -->
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   </head>
   <body>
     <div class="cms-header">
       <h1>✍️ YAMY 知识库编辑器</h1>
       <p>在线编辑 Markdown 文档，自动同步到 GitHub</p>
+      <p style="font-size: 12px; opacity: 0.8;">由 Netlify + Decap CMS 强力驱动</p>
     </div>
     <div id="nc-root"></div>
-    <div class="debug-info">
-      <strong>调试信息：</strong>
-      <div id="debug-status">正在加载 CMS...</div>
-    </div>
-    <!-- 使用最新版本的 Decap CMS -->
+    
     <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
     <script>
-      // 调试函数
-      function updateDebugStatus(message) {
-        const debugDiv = document.getElementById('debug-status');
-        if (debugDiv) {
-          debugDiv.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + message;
-        }
-        console.log(message);
-      }
-      
-      // 等待 CMS 加载完成
-      function waitForCMS() {
-        if (typeof CMS !== 'undefined') {
-          updateDebugStatus('✅ Decap CMS 已加载');
-          initCMS();
-        } else {
-          updateDebugStatus('⏳ 等待 CMS 加载...');
-          setTimeout(waitForCMS, 500);
-        }
-      }
-      
-      // 暂时不执行任何隐藏操作
-      
-      // 检查认证状态
-      function checkAuthStatus() {
-        // 检查 localStorage 中的认证信息
-        try {
-          const authData = localStorage.getItem('netlify-cms-auth');
-          const sessionAuth = sessionStorage.getItem('decap-cms-auth');
-          
-          updateDebugStatus('=== 认证状态检查 ===');
-          updateDebugStatus('localStorage keys: ' + JSON.stringify(Object.keys(localStorage)));
-          updateDebugStatus('sessionStorage keys: ' + JSON.stringify(Object.keys(sessionStorage)));
-          
-          if (authData) {
-            updateDebugStatus('✅ 发现 localStorage 认证信息: ' + authData);
-            
-            // 尝试解析认证信息，如果包含 code 而不是 token，清除它
-            try {
-              const parsed = JSON.parse(authData);
-              if (parsed.code && !parsed.token) {
-                updateDebugStatus('⚠️ 发现的是 authorization code，需要清除以重新认证');
-                localStorage.removeItem('netlify-cms-auth');
-                localStorage.removeItem('netlify-cms-user');
-                updateDebugStatus('已清除无效的认证信息');
-              }
-            } catch (e) {
-              updateDebugStatus('解析认证信息时出错: ' + e.message);
-            }
-          } else {
-            updateDebugStatus('❌ localStorage 中没有认证信息');
+      // Netlify Identity 登录事件处理
+      if (window.netlifyIdentity) {
+        window.netlifyIdentity.on("init", user => {
+          if (!user) {
+            window.netlifyIdentity.on("login", () => {
+              document.location.href = "/admin/";
+            });
           }
-          
-          if (sessionAuth) {
-            updateDebugStatus('✅ 发现 sessionStorage 认证信息: ' + sessionAuth);
-          } else {
-            updateDebugStatus('❌ sessionStorage 中没有认证信息');
-          }
-          
-          // 检查 URL hash 中的认证信息
-          if (window.location.hash) {
-            updateDebugStatus('URL hash: ' + window.location.hash);
-            // 如果有认证信息，尝试处理
-            if (window.location.hash.includes('auth=')) {
-              const authMatch = window.location.hash.match(/auth=([^&]+)/);
-              if (authMatch) {
-                try {
-                  const authData = JSON.parse(atob(authMatch[1]));
-                  updateDebugStatus('✅ 从 URL 解析到认证信息: ' + JSON.stringify(authData));
-                  // 存储到 localStorage
-                  localStorage.setItem('netlify-cms-auth', JSON.stringify(authData));
-                  // 清除 URL hash 并重新加载
-                  window.location.hash = '';
-                  setTimeout(() => location.reload(), 1000);
-                } catch (e) {
-                  updateDebugStatus('❌ 解析 URL 认证信息失败: ' + e.message);
-                }
-              }
-            }
-          } else {
-            updateDebugStatus('URL 中没有 hash 信息');
-          }
-          
-          updateDebugStatus('=== 认证状态检查完成 ===');
-        } catch (e) {
-          updateDebugStatus('检查认证状态失败: ' + e.message);
-        }
+        });
       }
       
-      // 初始化 CMS
-      function initCMS() {
-        try {
-          updateDebugStatus('正在初始化 CMS 配置...');
-          
-          // 先检查认证状态
-          checkAuthStatus();
-          
-          // 监听认证消息
-          window.addEventListener('message', function(event) {
-            updateDebugStatus('收到消息: ' + JSON.stringify(event.data));
-            
-            // 处理字符串格式的消息
-            if (typeof event.data === 'string' && event.data.startsWith('authorization:github:success')) {
-              updateDebugStatus('✅ 收到认证成功消息（字符串格式）！');
-              
-              // 尝试解析认证数据
-              try {
-                const authDataStr = event.data.replace('authorization:github:success:', '');
-                const authData = JSON.parse(authDataStr);
-                updateDebugStatus('解析到认证数据: ' + JSON.stringify(authData));
-                
-                // 手动触发 CMS 重新初始化
-                if (typeof CMS !== 'undefined' && CMS.init) {
-                  updateDebugStatus('手动重新初始化 CMS...');
-                  setTimeout(() => {
-                    try {
-                      CMS.init();
-                      updateDebugStatus('CMS 重新初始化完成');
-                    } catch (e) {
-                      updateDebugStatus('CMS 重新初始化失败: ' + e.message);
-                      location.reload();
-                    }
-                  }, 500);
-                } else {
-                  updateDebugStatus('正在重新加载页面...');
-                  setTimeout(() => location.reload(), 1000);
-                }
-              } catch (e) {
-                updateDebugStatus('解析认证数据失败: ' + e.message);
-                setTimeout(() => location.reload(), 1000);
-              }
-            }
-            // 处理对象格式的消息
-            else if (typeof event.data === 'object' && event.data.type === 'authorization:github:success') {
-              updateDebugStatus('✅ 收到认证成功消息（对象格式）！');
-              updateDebugStatus('认证数据: ' + JSON.stringify(event.data));
-              
-              setTimeout(() => {
-                updateDebugStatus('正在重新加载页面...');
-                location.reload();
-              }, 1000);
-            }
-            // 处理其他认证相关消息
-            else if (typeof event.data === 'string' && event.data.includes('authorization')) {
-              updateDebugStatus('🔄 收到认证相关消息: ' + event.data);
-            }
-          });
-          
-          updateDebugStatus('配置已准备，启动 CMS...');
-          
-          // 使用外部配置文件 config.yml，不传入内联配置
-          CMS.init();
-          
-          updateDebugStatus('✅ CMS 初始化完成！现在应该可以看到编辑器界面了。');
-          
-        } catch (error) {
-          updateDebugStatus('❌ CMS 初始化失败: ' + error.message);
-          console.error('CMS 初始化错误:', error);
-        }
-      }
-      
-      // 页面加载完成后开始检查
+      // 初始化 Decap CMS
       document.addEventListener('DOMContentLoaded', function() {
-        updateDebugStatus('页面已加载，开始检查 CMS...');
-        waitForCMS();
+        console.log('✅ 页面已加载，初始化 Decap CMS...');
+        
+        // 直接初始化 CMS，Netlify 会自动处理认证
+        CMS.init();
+        
+        console.log('✅ CMS 初始化完成！');
       });
     </script>
   </body>

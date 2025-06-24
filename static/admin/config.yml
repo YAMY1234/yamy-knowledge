@@ -1,21 +1,12 @@
-# 生产环境配置（GitHub 直接集成）
+# Netlify 部署配置（使用 Git Gateway）
 backend:
-  name: github
-  repo: YAMY1234/yamy-knowledge  # 替换为你的 GitHub 仓库
+  name: git-gateway
   branch: main
-  # GitHub OAuth App Client ID
-  client_id: "Ov23lisJIWDlWIG2mY4u"
-  # 使用自定义认证端点
-  base_url: https://yamy-knowledge.vercel.app
-  auth_endpoint: admin/auth.html
-  # 使用 implicit 模式，在主窗口中认证
-  auth_type: implicit
-  # 不使用弹窗
-  auth_scope: repo
 
-# 本地开发配置
+# 本地开发可以使用下面的配置
 # backend:
-#   name: git-gateway
+#   name: github
+#   repo: YAMY1234/yamy-knowledge
 #   branch: main
 
 local_backend: false  # 生产环境时设置为 false
