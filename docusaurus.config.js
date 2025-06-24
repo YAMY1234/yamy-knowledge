@@ -75,6 +75,14 @@ const config = {
     ],
   ],
 
+  // 添加 Netlify Identity 脚本
+  scripts: [
+    {
+      src: 'https://identity.netlify.com/v1/netlify-identity-widget.js',
+      async: true,
+    },
+  ],
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
