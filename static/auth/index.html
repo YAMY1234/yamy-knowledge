@@ -93,24 +93,49 @@
           console.log("直接跳转到 admin 页面");
           window.location.href = '/admin/#' + btoa(JSON.stringify(authData));
         }
-      } else {
-        // 没有认证码，显示调试信息
-        console.log("没有收到认证码，可能是首次访问认证页面");
-        document.querySelector('h2').textContent = "等待 GitHub 认证...";
-        document.querySelector('p').innerHTML = `
-          <strong>调试信息：</strong><br>
-          当前 URL: ${window.location.href}<br>
-          是否有 code 参数: ${code ? '是' : '否'}<br>
-          是否有 state 参数: ${state ? '是' : '否'}<br>
-          <br>
-          如果长时间停留在此页面，请检查 GitHub OAuth App 的回调URL设置
-        `;
-        
-        // 等待更长时间，给用户看调试信息
-        setTimeout(() => {
-          window.location.href = '/admin/';
-        }, 10000);
-      }
+              } else {
+          // 没有认证码，需要跳转到 GitHub 进行认证
+          console.log("没有收到认证码，准备跳转到 GitHub 认证");
+          
+          // 检查是否是来自 CMS 的认证请求
+          const provider = urlParams.get('provider');
+          const siteId = urlParams.get('site_id');
+          const scope = urlParams.get('scope');
+          
+          if (provider === 'github') {
+            // 构建 GitHub OAuth URL
+            const clientId = 'Ov23lisJIWDlWIG2mY4u'; // 你的 Client ID
+            const redirectUri = encodeURIComponent('https://yamy-knowledge.vercel.app/auth/');
+            const scopeParam = scope || 'repo';
+            const state = Math.random().toString(36).substring(2); // 生成随机 state
+            
+            const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopeParam}&state=${state}`;
+            
+            console.log("跳转到 GitHub 认证:", githubAuthUrl);
+            document.querySelector('h2').textContent = "正在跳转到 GitHub...";
+            document.querySelector('p').textContent = "请稍候，正在重定向到 GitHub 进行认证";
+            
+            // 跳转到 GitHub
+            window.location.href = githubAuthUrl;
+          } else {
+            // 显示调试信息
+            document.querySelector('h2').textContent = "等待 GitHub 认证...";
+            document.querySelector('p').innerHTML = `
+              <strong>调试信息：</strong><br>
+              当前 URL: ${window.location.href}<br>
+              是否有 code 参数: ${code ? '是' : '否'}<br>
+              是否有 state 参数: ${state ? '是' : '否'}<br>
+              Provider: ${provider || '未设置'}<br>
+              <br>
+              <button onclick="window.location.href='/admin/'" style="padding: 10px 15px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">返回编辑器</button>
+            `;
+            
+            // 等待更长时间，给用户看调试信息
+            setTimeout(() => {
+              window.location.href = '/admin/';
+            }, 15000);
+          }
+        }
       
       // 监听来自 admin 页面的消息
       function receiveMessage(e) {
