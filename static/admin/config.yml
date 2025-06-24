@@ -3,13 +3,11 @@ backend:
   name: github
   repo: YAMY1234/yamy-knowledge  # 替换为你的 GitHub 仓库
   branch: main
-  # 强制使用 GitHub 直接认证，不通过 Netlify
+  # 先尝试不使用 Client ID 的方案
   auth_type: implicit
-  # 设置基础URL避免跳转到 Netlify
-  base_url: https://yamy-knowledge.vercel.app
-  # 明确指定不使用 Netlify 服务
-  site_domain: yamy-knowledge.vercel.app
-  # 如果创建了 GitHub OAuth App，请在这里填入 Client ID
+  # 设置正确的认证 URL 模式
+  auth_url: "https://github.com/login/oauth/authorize"
+  # 如果上面不行，需要创建 GitHub OAuth App 并取消注释下面这行
   # client_id: "你的GitHub OAuth App Client ID"
 
 # 本地开发配置
