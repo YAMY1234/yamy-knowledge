@@ -37,7 +37,39 @@ const sidebars = {
         'llm-advanced/llm-trend',
       ],
     },
+    {
+      type: 'category',
+      label: 'LLM基础设施',
+      items: [
+        'llm-infra/training-infrastructure',
+        'llm-infra/inference-optimization',
+        'llm-infra/model-deployment',
+        'llm-infra/distributed-parallelism',
+      ],
+    },
   ],
+
+  // But you can create a sidebar manually
+  /*
+  tutorialSidebar: [
+    'intro',
+    {
+      type: 'category',
+      label: 'LLM基础',
+      items: ['llm-basics/what-is-llm'],
+    },
+    {
+      type: 'category',
+      label: 'LLM进阶',
+      items: ['llm-advanced/finetune-llm'],
+    },
+    {
+      type: 'category',
+      label: 'LLM基础设施',
+      items: ['llm-infra/training-infrastructure'],
+    },
+  ],
+  */
 };
 
 export default sidebars;
