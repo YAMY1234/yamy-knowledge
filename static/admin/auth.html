@@ -31,20 +31,46 @@
         
         // 发送认证成功消息给父窗口
         if (window.opener) {
-          window.opener.postMessage({
-            type: 'authorization:github:success',
+          // 尝试多种消息格式，确保 CMS 能接收到
+          try {
+            // Decap CMS 期望的格式
+            window.opener.postMessage(
+              'authorization:github:success:' + JSON.stringify({
+                provider: 'github',
+                code: code,
+                state: state
+              }), 
+              window.location.origin
+            );
+            
+            // 备用格式
+            window.opener.postMessage({
+              type: 'authorization:github:success',
+              provider: 'github',
+              code: code,
+              state: state
+            }, window.location.origin);
+            
+            console.log('Messages sent to parent window');
+            
+            // 稍等一下再关闭窗口
+            setTimeout(() => {
+              window.close();
+            }, 1000);
+          } catch (e) {
+            console.error('Failed to send message:', e);
+            // 如果发送消息失败，跳转回 admin
+            window.location.href = '/admin/';
+          }
+        } else {
+          // 如果没有父窗口，跳转回 admin 并携带认证信息
+          console.log('No parent window, redirecting to admin with auth data');
+          const authDataEncoded = btoa(JSON.stringify({
             provider: 'github',
             code: code,
             state: state
-          }, window.location.origin);
-          
-          // 稍等一下再关闭窗口
-          setTimeout(() => {
-            window.close();
-          }, 1000);
-        } else {
-          // 如果没有父窗口，跳转回 admin
-          window.location.href = '/admin/';
+          }));
+          window.location.href = '/admin/#auth=' + authDataEncoded;
         }
       } else {
         // 没有认证码，需要开始认证流程

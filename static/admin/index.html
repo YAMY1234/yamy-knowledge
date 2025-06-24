@@ -112,12 +112,26 @@
           // 监听认证消息
           window.addEventListener('message', function(event) {
             updateDebugStatus('收到消息: ' + JSON.stringify(event.data));
+            
+            // 处理字符串格式的消息
             if (typeof event.data === 'string' && event.data.startsWith('authorization:github:success')) {
-              updateDebugStatus('收到认证成功消息！');
-              // 重新初始化 CMS
+              updateDebugStatus('✅ 收到认证成功消息（字符串格式）！');
               setTimeout(() => {
+                updateDebugStatus('正在重新加载页面...');
                 location.reload();
               }, 1000);
+            }
+            // 处理对象格式的消息
+            else if (typeof event.data === 'object' && event.data.type === 'authorization:github:success') {
+              updateDebugStatus('✅ 收到认证成功消息（对象格式）！');
+              setTimeout(() => {
+                updateDebugStatus('正在重新加载页面...');
+                location.reload();
+              }, 1000);
+            }
+            // 处理其他认证相关消息
+            else if (typeof event.data === 'string' && event.data.includes('authorization')) {
+              updateDebugStatus('🔄 收到认证相关消息: ' + event.data);
             }
           });
           
