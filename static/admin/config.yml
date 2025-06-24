@@ -3,12 +3,8 @@ backend:
   name: github
   repo: YAMY1234/yamy-knowledge  # 替换为你的 GitHub 仓库
   branch: main
-  # 先尝试不使用 Client ID 的方案
-  auth_type: implicit
-  # 设置正确的认证 URL 模式
-  auth_url: "https://github.com/login/oauth/authorize"
-  # 如果上面不行，需要创建 GitHub OAuth App 并取消注释下面这行
-  # client_id: "你的GitHub OAuth App Client ID"
+  # 必须使用 GitHub OAuth App Client ID 才能避免跳转到 Netlify
+  client_id: "Ov23lisJIWDlWIG2mY4u"  # 请替换为你自己的 Client ID
 
 # 本地开发配置
 # backend:
