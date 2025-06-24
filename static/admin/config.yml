@@ -8,6 +8,8 @@ backend:
   # 使用自定义认证端点
   base_url: https://yamy-knowledge.vercel.app
   auth_endpoint: admin/auth.html
+  # 强制使用 implicit 模式
+  auth_type: implicit
 
 # 本地开发配置
 # backend:
@@ -26,6 +28,7 @@ collections:
     create: true
     slug: "{{slug}}"
     fields:
+      - { label: "标题", name: "title", widget: "string", required: true }
       - { label: "内容", name: "body", widget: "markdown", required: true }
 
   - name: "llm-advanced"
@@ -34,6 +37,7 @@ collections:
     create: true
     slug: "{{slug}}"
     fields:
+      - { label: "标题", name: "title", widget: "string", required: true }
       - { label: "内容", name: "body", widget: "markdown", required: true }
 
   - name: "llm-infra"
@@ -42,6 +46,7 @@ collections:
     create: true
     slug: "{{slug}}"
     fields:
+      - { label: "标题", name: "title", widget: "string", required: true }
       - { label: "内容", name: "body", widget: "markdown", required: true }
 
   - name: "blog"

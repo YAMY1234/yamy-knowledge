@@ -85,17 +85,47 @@
           const authData = localStorage.getItem('netlify-cms-auth');
           const sessionAuth = sessionStorage.getItem('decap-cms-auth');
           
+          updateDebugStatus('=== 认证状态检查 ===');
+          updateDebugStatus('localStorage keys: ' + JSON.stringify(Object.keys(localStorage)));
+          updateDebugStatus('sessionStorage keys: ' + JSON.stringify(Object.keys(sessionStorage)));
+          
           if (authData) {
-            updateDebugStatus('发现 localStorage 认证信息: ' + authData);
+            updateDebugStatus('✅ 发现 localStorage 认证信息: ' + authData);
+          } else {
+            updateDebugStatus('❌ localStorage 中没有认证信息');
           }
+          
           if (sessionAuth) {
-            updateDebugStatus('发现 sessionStorage 认证信息: ' + sessionAuth);
+            updateDebugStatus('✅ 发现 sessionStorage 认证信息: ' + sessionAuth);
+          } else {
+            updateDebugStatus('❌ sessionStorage 中没有认证信息');
           }
           
           // 检查 URL hash 中的认证信息
           if (window.location.hash) {
             updateDebugStatus('URL hash: ' + window.location.hash);
+            // 如果有认证信息，尝试处理
+            if (window.location.hash.includes('auth=')) {
+              const authMatch = window.location.hash.match(/auth=([^&]+)/);
+              if (authMatch) {
+                try {
+                  const authData = JSON.parse(atob(authMatch[1]));
+                  updateDebugStatus('✅ 从 URL 解析到认证信息: ' + JSON.stringify(authData));
+                  // 存储到 localStorage
+                  localStorage.setItem('netlify-cms-auth', JSON.stringify(authData));
+                  // 清除 URL hash 并重新加载
+                  window.location.hash = '';
+                  setTimeout(() => location.reload(), 1000);
+                } catch (e) {
+                  updateDebugStatus('❌ 解析 URL 认证信息失败: ' + e.message);
+                }
+              }
+            }
+          } else {
+            updateDebugStatus('URL 中没有 hash 信息');
           }
+          
+          updateDebugStatus('=== 认证状态检查完成 ===');
         } catch (e) {
           updateDebugStatus('检查认证状态失败: ' + e.message);
         }

@@ -27,10 +27,21 @@
       }
       
       if (code) {
-        console.log('Authentication successful, sending message to parent');
+        console.log('Authentication successful, code received:', code);
+        console.log('State:', state);
+        console.log('Window opener exists:', !!window.opener);
+        console.log('Window opener closed:', window.opener ? window.opener.closed : 'N/A');
+        
+        // 显示认证成功信息
+        document.querySelector('p').innerHTML = `
+          <strong>认证成功！</strong><br>
+          Code: ${code.substring(0, 10)}...<br>
+          State: ${state}<br>
+          正在处理认证信息...
+        `;
         
         // 发送认证成功消息给父窗口
-        if (window.opener) {
+        if (window.opener && !window.opener.closed) {
           // 尝试多种消息格式，确保 CMS 能接收到
           try {
             // Decap CMS 期望的格式
