@@ -1,4 +1,5 @@
 ---
+id: llm-trend
 sidebar_position: 3
 ---
 

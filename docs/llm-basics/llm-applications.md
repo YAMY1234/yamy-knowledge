@@ -1,4 +1,5 @@
 ---
+id: llm-applications
 sidebar_position: 5
 ---
 
