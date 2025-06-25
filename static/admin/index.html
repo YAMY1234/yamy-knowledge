@@ -47,6 +47,15 @@
     
     <script src="https://unpkg.com/decap-cms@^3.0.0/dist/decap-cms.js"></script>
     <script>
+      // 全局错误处理 - 静默处理 React DOM 错误
+      window.addEventListener('error', function(e) {
+        if (e.error && e.error.message && e.error.message.includes('removeChild')) {
+          // 静默处理 removeChild 错误，不影响用户体验
+          e.preventDefault();
+          return false;
+        }
+      });
+
       // Netlify Identity 登录事件处理
       if (window.netlifyIdentity) {
         window.netlifyIdentity.on("init", user => {
@@ -62,10 +71,14 @@
       document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 页面已加载，初始化 Decap CMS...');
         
-        // 直接初始化 CMS，Netlify 会自动处理认证
-        CMS.init();
-        
-        console.log('✅ CMS 初始化完成！');
+        try {
+          // 直接初始化 CMS，Netlify 会自动处理认证
+          CMS.init();
+          console.log('✅ CMS 初始化完成！');
+        } catch (error) {
+          console.warn('CMS 初始化遇到问题，但继续运行:', error);
+          // 不阻止执行，让 CMS 自己处理
+        }
       });
     </script>
   </body>

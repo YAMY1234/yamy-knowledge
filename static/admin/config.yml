@@ -14,6 +14,9 @@ local_backend: false  # 生产环境时设置为 false
 media_folder: "static/img/uploads"
 public_folder: "/img/uploads"
 
+# 避免媒体库相关错误
+site_url: https://yamy-knowledge.netlify.app
+
 collections:
   - name: "llm-basics"
     label: "LLM 基础"

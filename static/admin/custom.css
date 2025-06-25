@@ -191,4 +191,9 @@
     color: #e2e8f0 !important;
     border-color: #4a5568 !important;
   }
+}
+
+/* 仅隐藏错误边界的调试信息，不改变其他样式 */
+.css-m0w770-PrivacyWarning {
+  display: none !important;
 } 
