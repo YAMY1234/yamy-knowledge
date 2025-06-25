@@ -154,29 +154,32 @@ class MDXSyntaxChecker:
 
 
 class MarkdownHeadingChecker:
-    """Markdown标题结构检查器，检测和修复标题层级问题"""
+    """检查和修复markdown标题结构问题"""
     
     def __init__(self):
         # 需要检查的模式
-        self.long_content_threshold = 1000  # 文档长度阈值
-        self.min_h2_headings = 2  # 长文档应该有的最少二级标题数
+        self.long_content_threshold = 1000  # 长文档阈值
+        self.min_h2_headings = 2  # 最少二级标题数量
     
     def scan_file(self, file_path):
-        """扫描文件中的标题结构问题"""
+        """扫描文件，查找标题结构问题"""
         import re
         issues = {}
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-                lines = content.split('\n')
             
-            # 跳过frontmatter
+            # 跳过 frontmatter
+            lines = content.split('\n')
             content_start = 0
-            if content.startswith('---'):
-                end_frontmatter = content.find('\n---\n', 3)
-                if end_frontmatter != -1:
-                    content_start = end_frontmatter + 5
+            if lines and lines[0].strip() == '---':
+                # 寻找frontmatter结束
+                for i, line in enumerate(lines[1:], 1):
+                    if line.strip() == '---':
+                        content_start = sum(len(l) + 1 for l in lines[:i+1])
+                        break
+                if content_start > 0:
                     content = content[content_start:]
                     lines = content.split('\n')
             
@@ -243,31 +246,20 @@ class MarkdownHeadingChecker:
             # 修复转义的粗体格式
             content = re.sub(r'\\?\*\\?\*([^*]+)\\?\*\\?\*', r'**\1**', content)
             
-            # 将常见的粗体标记模式转换为标题
-            # 匹配如 "**实现细节:**" 这样的模式，转换为 "## 实现细节"
-            content = re.sub(r'^\*\*([^*]+):\*\*\s*$', r'## \1', content, flags=re.MULTILINE)
+            # 修复粗体后缺少空格的问题
+            content = re.sub(r'\*\*([^*]+):\*\*([^\s])', r'**\1:** \2', content)
             
-            # 匹配如 "**性能优势:**" 在段落开头的模式
-            content = re.sub(r'^(\*\*[^*]+:\*\*)\s', r'## \1\n\n', content, flags=re.MULTILINE)
+            # 将特定的粗体标记模式转换为标题，但要谨慎，避免转换重要内容
+            # 只转换独立行上的特定模式，并且要确保不是重要的主题内容
+            
+            # 匹配如 "**实现细节:**" 这样在单独行上的模式，转换为二级标题
+            content = re.sub(r'^\*\*([^*]*(?:实现|特点|优势|机制|影响|解析|场景|支持|优化|问题|细节|方法|策略|原理)[^*]*)\*\*\s*$', r'## \1', content, flags=re.MULTILINE)
+            
+            # 匹配如 "**概念:**" 这样带冒号的模式
+            content = re.sub(r'^\*\*([^*]+):\*\*\s*$', r'## \1', content, flags=re.MULTILINE)
             
             # 清理转换后可能产生的多余冒号
             content = re.sub(r'^## ([^:]+):\s*$', r'## \1', content, flags=re.MULTILINE)
-            
-            # 修复一些常见的标题模式
-            heading_patterns = [
-                (r'^\*\*([^*]*实现[^*]*)\*\*', r'## \1'),
-                (r'^\*\*([^*]*特点[^*]*)\*\*', r'## \1'),  
-                (r'^\*\*([^*]*优势[^*]*)\*\*', r'## \1'),
-                (r'^\*\*([^*]*机制[^*]*)\*\*', r'## \1'),
-                (r'^\*\*([^*]*影响[^*]*)\*\*', r'## \1'),
-                (r'^\*\*([^*]*解析[^*]*)\*\*', r'## \1'),
-                (r'^\*\*([^*]*场景[^*]*)\*\*', r'## \1'),
-                (r'^\*\*([^*]*支持[^*]*)\*\*', r'## \1'),
-                (r'^\*\*([^*]*优化[^*]*)\*\*', r'## \1'),
-            ]
-            
-            for pattern, replacement in heading_patterns:
-                content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
             
             if content != original_content:
                 if backup:
