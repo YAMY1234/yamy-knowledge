@@ -13,7 +13,7 @@ model = model.half()  # 使用FP16
 torch.backends.cuda.matmul.allow_tf32 = True  # 启用TF32
 ```
 
-优化要点：
+优化要点:
 
 * 选择支持Tensor Core的GPU架构
 * 使用适合的数据类型(FP16/BF16)
@@ -32,7 +32,7 @@ def optimize_memory():
     output = checkpoint(model, input)
 ```
 
-关键策略：
+关键策略:
 
 * 显存碎片整理
 * 梯度检查点
@@ -63,7 +63,7 @@ def fast_compute(x):
     return x * x
 ```
 
-支持指令集：
+支持指令集:
 
 * AVX-512
 * VNNI
@@ -102,7 +102,7 @@ module matrix_multiply (
 endmodule
 ```
 
-优势：
+优势:
 
 * 可定制化
 * 低延迟
@@ -110,7 +110,7 @@ endmodule
 
 ### ASIC设计
 
-特点：
+特点:
 
 * 专用电路设计
 * 极致性能
@@ -124,7 +124,7 @@ from mindspore import context
 context.set_context(device_target="NPU")
 ```
 
-应用场景：
+应用场景:
 
 * 边缘计算
 * 移动设备

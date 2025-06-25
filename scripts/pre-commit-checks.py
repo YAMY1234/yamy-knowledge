@@ -5,7 +5,8 @@ Pre-commit 检查脚本
 集成多种检查功能:
 1. MDX表格数字格式检查
 2. 中文标点检查
-3. 支持Git hook使用
+3. MDX语法特殊字符检查
+4. 支持Git hook使用
 
 使用方法:
 python3 scripts/pre-commit-checks.py [--fix] [--staged-only]
@@ -73,10 +74,84 @@ def import_fixers():
 import_fixers()
 
 
+class MDXSyntaxChecker:
+    """MDX语法检查器，检测可能导致MDX编译错误的特殊字符"""
+    
+    def __init__(self):
+        # MDX中需要注意的特殊字符模式
+        self.problematic_patterns = [
+            (r'\|\s*[^|]*?\d+\+[^|]*?\|', '表格中的加号需要转义'),
+            (r'\|\s*[^|]*?\d+\*[^|]*?\|', '表格中的星号需要转义'),
+            (r'\|\s*[^|]*?[<>][^|]*?\|', '表格中的尖括号可能需要转义'),
+            (r'\|\s*[^|]*?\{[^|}]*?\}[^|]*?\|', '表格中的花括号可能需要转义'),
+        ]
+    
+    def scan_file(self, file_path):
+        """扫描文件中的MDX语法问题"""
+        import re
+        issues = {}
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            for line_num, line in enumerate(lines, 1):
+                for pattern, description in self.problematic_patterns:
+                    if re.search(pattern, line):
+                        if description not in issues:
+                            issues[description] = []
+                        issues[description].append((line_num, line.strip()))
+        
+        except Exception as e:
+            print(f"警告: 无法扫描文件 {file_path} ({e})")
+        
+        return issues
+    
+    def fix_file(self, file_path, backup=False):
+        """修复文件中的MDX语法问题"""
+        import re
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            original_content = content
+            
+            # 修复表格中的加号
+            content = re.sub(r'(\|\s*[^|]*?)(\d+)\+([^|]*?\|)', r'\1\2及以上\3', content)
+            
+            # 修复表格中的星号
+            content = re.sub(r'(\|\s*[^|]*?)(\d+)\*([^|]*?\|)', r'\1\2倍\3', content)
+            
+            # 修复表格中的尖括号 - 转换为HTML实体
+            content = re.sub(r'(\|\s*[^|]*?)<([^|]*?\|)', r'\1&lt;\2', content)
+            content = re.sub(r'(\|\s*[^|]*?)>([^|]*?\|)', r'\1&gt;\2', content)
+            
+            # 修复表格中的花括号
+            content = re.sub(r'(\|\s*[^|]*?)\{([^|}]*?)\}([^|]*?\|)', r'\1\\{\2\\}\3', content)
+            
+            if content != original_content:
+                if backup:
+                    backup_path = str(file_path) + '.bak'
+                    with open(backup_path, 'w', encoding='utf-8') as f:
+                        f.write(original_content)
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                
+                return True
+        
+        except Exception as e:
+            print(f"警告: 无法修复文件 {file_path} ({e})")
+        
+        return False
+
+
 class PreCommitChecker:
     def __init__(self):
         self.mdx_fixer = MDXTableFixer()
         self.punct_fixer = MarkdownPunctuationFixer()
+        self.mdx_syntax_checker = MDXSyntaxChecker()
         self.errors_found = False
     
     def get_staged_files(self) -> List[Path]:
@@ -132,6 +207,21 @@ class PreCommitChecker:
             if fix_mode:
                 if self.punct_fixer.fix_file(file_path):
                     print(f"  ✓ 中文标点问题已修复")
+                    has_issues = False  # 已修复
+        
+        # MDX语法检查
+        mdx_syntax_issues = self.mdx_syntax_checker.scan_file(file_path)
+        if mdx_syntax_issues:
+            has_issues = True
+            for issue_type, issue_list in mdx_syntax_issues.items():
+                print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                if not fix_mode:
+                    for line_num, line_content in issue_list[:3]:
+                        print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+            
+            if fix_mode:
+                if self.mdx_syntax_checker.fix_file(file_path):
+                    print(f"  ✓ MDX语法问题已修复")
                     has_issues = False  # 已修复
         
         if not has_issues:
