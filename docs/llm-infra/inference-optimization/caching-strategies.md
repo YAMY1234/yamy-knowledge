@@ -1,13 +1,12 @@
 ---
 id: caching-strategies
 sidebar_position: 4
+title: 缓存策略
 ---
-
-# 缓存策略
-
 ## KV缓存优化
 
 ### 缓存设计
+
 ```python
 class KVCache:
     def __init__(self, max_size):
@@ -27,6 +26,7 @@ class KVCache:
 ```
 
 ### 内存管理
+
 ```python
 class MemoryManager:
     def __init__(self):
@@ -49,6 +49,7 @@ class MemoryManager:
 ```
 
 ### 缓存更新策略
+
 1. LRU (最近最少使用)
 2. LFU (最不经常使用)
 3. FIFO (先进先出)
@@ -56,6 +57,7 @@ class MemoryManager:
 ## 结果缓存
 
 ### 相似查询识别
+
 ```python
 def compute_similarity(query1, query2):
     """
@@ -79,6 +81,7 @@ def find_similar_cached(query, cache):
 ```
 
 ### 缓存失效策略
+
 ```python
 class CacheManager:
     def __init__(self):
@@ -101,6 +104,7 @@ class CacheManager:
 ```
 
 ### 分布式缓存
+
 ```python
 from redis import Redis
 
@@ -125,6 +129,7 @@ class DistributedCache:
 ## 预计算与缓存
 
 ### 常用计算结果预存储
+
 ```python
 class PrecomputeCache:
     def __init__(self):
@@ -143,6 +148,7 @@ class PrecomputeCache:
 ```
 
 ### 模型中间结果缓存
+
 ```python
 class ModelCache:
     def __init__(self, model):
@@ -163,6 +169,7 @@ class ModelCache:
 ```
 
 ### 增量计算优化
+
 ```python
 class IncrementalCompute:
     def __init__(self):
@@ -187,7 +194,9 @@ class IncrementalCompute:
 ## 最佳实践
 
 ### 缓存容量规划
+
 1. 内存使用评估
+
 ```python
 def estimate_memory_usage(cache_size, item_size):
     """
@@ -199,6 +208,7 @@ def estimate_memory_usage(cache_size, item_size):
 ```
 
 2. 容量限制设置
+
 ```python
 def set_cache_limits():
     """
@@ -210,7 +220,9 @@ def set_cache_limits():
 ```
 
 ### 命中率优化
+
 1. 监控指标
+
 ```python
 class CacheMetrics:
     def __init__(self):
@@ -229,21 +241,24 @@ class CacheMetrics:
 ```
 
 2. 优化策略
-- 预热缓存
-- 动态TTL
-- 智能预取
+
+* 预热缓存
+* 动态TTL
+* 智能预取
 
 ### 成本收益分析
-| 缓存类型 | 内存占用 | 访问延迟 | 更新成本 | 适用场景 |
-|---------|---------|---------|---------|---------|
-| 本地缓存 | 中 | 低 | 低 | 单机部署 |
-| 分布式缓存 | 高 | 中 | 高 | 集群部署 |
-| KV缓存 | 低 | 极低 | 中 | 推理加速 |
-| 结果缓存 | 高 | 低 | 高 | 查询优化 |
+
+| 缓存类型  | 内存占用 | 访问延迟 | 更新成本 | 适用场景 |
+| ----- | ---- | ---- | ---- | ---- |
+| 本地缓存  | 中    | 低    | 低    | 单机部署 |
+| 分布式缓存 | 高    | 中    | 高    | 集群部署 |
+| KV缓存  | 低    | 极低   | 中    | 推理加速 |
+| 结果缓存  | 高    | 低    | 高    | 查询优化 |
 
 ## 性能优化
 
 ### 1. 缓存预热
+
 ```python
 async def warmup_cache():
     """
@@ -256,6 +271,7 @@ async def warmup_cache():
 ```
 
 ### 2. 并发访问优化
+
 ```python
 from asyncio import Lock
 
@@ -278,6 +294,7 @@ class ThreadSafeCache:
 ```
 
 ### 3. 内存优化
+
 ```python
 class MemoryOptimizedCache:
     def __init__(self, max_memory_mb):
@@ -291,4 +308,4 @@ class MemoryOptimizedCache:
             self._evict_until_fit(value_size)
         self.cache[key] = value
         self.current_memory += value_size
-``` 
+```
