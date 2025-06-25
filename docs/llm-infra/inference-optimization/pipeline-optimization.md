@@ -1,13 +1,12 @@
 ---
 id: pipeline-optimization
 sidebar_position: 5
+title: 推理管道优化
 ---
-
-# 推理管道优化
-
 ## 并行处理
 
 ### 请求级并行
+
 ```python
 async def parallel_inference(requests):
     """
@@ -22,6 +21,7 @@ async def parallel_inference(requests):
 ```
 
 ### 模型并行
+
 ```python
 class ModelParallel:
     def __init__(self, model, num_gpus):
@@ -44,6 +44,7 @@ class ModelParallel:
 ```
 
 ### 流水线并行
+
 ```python
 class PipelineParallel:
     def __init__(self, stages):
@@ -67,6 +68,7 @@ class PipelineParallel:
 ## 异步处理
 
 ### 异步推理
+
 ```python
 class AsyncInference:
     def __init__(self, model):
@@ -102,6 +104,7 @@ class AsyncInference:
 ```
 
 ### 非阻塞IO
+
 ```python
 class NonBlockingIO:
     def __init__(self):
@@ -121,6 +124,7 @@ class NonBlockingIO:
 ```
 
 ### 事件驱动架构
+
 ```python
 class EventDrivenInference:
     def __init__(self):
@@ -140,6 +144,7 @@ class EventDrivenInference:
 ## 调度优化
 
 ### 负载均衡
+
 ```python
 class LoadBalancer:
     def __init__(self, workers):
@@ -157,6 +162,7 @@ class LoadBalancer:
 ```
 
 ### 资源分配
+
 ```python
 class ResourceManager:
     def __init__(self, total_memory, total_compute):
@@ -174,6 +180,7 @@ class ResourceManager:
 ```
 
 ### 优先级管理
+
 ```python
 class PriorityScheduler:
     def __init__(self):
@@ -197,6 +204,7 @@ class PriorityScheduler:
 ## 性能优化
 
 ### 系统瓶颈分析
+
 ```python
 class PerformanceAnalyzer:
     def __init__(self):
@@ -217,6 +225,7 @@ class PerformanceAnalyzer:
 ```
 
 ### 性能监控
+
 ```python
 class PerformanceMonitor:
     def __init__(self):
@@ -238,6 +247,7 @@ class PerformanceMonitor:
 ```
 
 ### 可扩展性设计
+
 ```python
 class ScalableInference:
     def __init__(self):
@@ -263,42 +273,47 @@ class ScalableInference:
 ## 最佳实践
 
 ### 性能优化策略
+
 1. 计算优化
-   - 算子融合
-   - 内存布局优化
-   - 批处理策略
 
+   * 算子融合
+   * 内存布局优化
+   * 批处理策略
 2. 通信优化
-   - 减少数据传输
-   - 压缩通信数据
-   - 优化通信模式
 
+   * 减少数据传输
+   * 压缩通信数据
+   * 优化通信模式
 3. 调度优化
-   - 负载均衡
-   - 资源分配
-   - 优先级管理
+
+   * 负载均衡
+   * 资源分配
+   * 优先级管理
 
 ### 监控指标
-| 指标类型 | 具体指标 | 优化方向 |
-|---------|---------|---------|
-| 延迟 | 平均延迟 | 降低 |
-| 吞吐量 | QPS | 提高 |
-| 资源利用 | GPU利用率 | 提高 |
-| 内存使用 | 显存占用 | 优化 |
-| 错误率 | 请求失败率 | 降低 |
+
+| 指标类型 | 具体指标   | 优化方向 |
+| ---- | ------ | ---- |
+| 延迟   | 平均延迟   | 降低   |
+| 吞吐量  | QPS    | 提高   |
+| 资源利用 | GPU利用率 | 提高   |
+| 内存使用 | 显存占用   | 优化   |
+| 错误率  | 请求失败率  | 降低   |
 
 ### 常见问题
+
 1. 性能瓶颈
-   - 分析系统瓶颈
-   - 优化关键路径
-   - 资源扩容
 
+   * 分析系统瓶颈
+   * 优化关键路径
+   * 资源扩容
 2. 稳定性问题
-   - 错误处理
-   - 容错机制
-   - 监控告警
 
+   * 错误处理
+   * 容错机制
+   * 监控告警
 3. 扩展性问题
-   - 动态扩缩容
-   - 负载均衡
-   - 资源调度 
+
+   * 动态扩缩容
+   * 负载均衡
+   * 资源调度
