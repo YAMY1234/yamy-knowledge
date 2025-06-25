@@ -141,7 +141,22 @@ def progressive_quantization(model, num_stages):
 
 ### 基本原理
 
-知识蒸馏是通过训练一个小模型(学生模型)来模仿大模型(教师模型)的行为，从而实现模型压缩。
+知识蒸馏是通过训练一个**全新的小模型(学生模型)**来模仿**已训练好的大模型(教师模型)**的行为，从而实现模型压缩。
+
+**核心思想:**
+- **不是压缩现有模型的权重**，而是训练一个参数更少的新模型
+- 学生模型通过学习教师模型的"软标签"输出，获得比直接训练更好的性能
+- 最终得到一个参数少但性能接近大模型的压缩模型
+
+**为什么能实现压缩:**
+1. **结构设计差异**: 学生模型从设计上就比教师模型小(如层数更少、隐藏维度更小)
+2. **知识转移**: 学生模型学习的是教师模型的"思考过程"，而不是复制权重
+3. **软标签优势**: 教师模型的概率分布输出比硬标签包含更丰富的信息
+
+例如:
+- 教师模型: 12层Transformer，1.1亿参数
+- 学生模型: 6层Transformer，6600万参数  
+- 通过蒸馏训练后，学生模型能达到接近教师模型的性能
 
 ### 实现方法
 
@@ -177,33 +192,85 @@ class DistillationLoss(nn.Module):
 
 ### 原理介绍
 
-通过移除模型中不重要的连接或神经元来减小模型大小。
+剪枝技术通过**移除模型中不重要的连接或神经元**来减小模型大小和提高计算效率。其核心思想是识别并去除对模型性能影响较小的部分，从而减少计算量和存储需求。
 
 ### 实现方式
 
 ```python
+import torch
+import torch.nn as nn
+import numpy as np
+
 def prune_model(model, pruning_ratio):
-    # 计算权重重要性
-    importance = calculate_weight_importance(model)
+    """
+    对模型进行权重剪枝
+    """
+    # 收集所有权重参数
+    all_weights = []
+    for module in model.modules():
+        if isinstance(module, (nn.Linear, nn.Conv2d)):
+            all_weights.append(module.weight.data.view(-1))
     
-    # 根据重要性进行剪枝
-    threshold = np.percentile(importance, pruning_ratio * 100)
-    mask = importance > threshold
+    # 将所有权重拼接成一个张量
+    all_weights = torch.cat(all_weights)
     
-    # 应用剪枝掩码
-    apply_pruning_mask(model, mask)
+    # 计算权重重要性(这里使用绝对值作为重要性指标)
+    importance = torch.abs(all_weights)
+    
+    # 确定剪枝阈值
+    threshold = torch.quantile(importance, pruning_ratio)
+    
+    # 对每个模块应用剪枝
+    for module in model.modules():
+        if isinstance(module, (nn.Linear, nn.Conv2d)):
+            # 创建掩码:保留绝对值大于阈值的权重
+            mask = torch.abs(module.weight.data) > threshold
+            # 将不重要的权重置为0
+            module.weight.data *= mask.float()
+
+# 使用PyTorch内置的剪枝工具
+import torch.nn.utils.prune as prune
+
+def structured_prune_example(model):
+    """
+    结构化剪枝示例:移除整个通道
+    """
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d):
+            # 剪枝30%的输出通道
+            prune.ln_structured(module, name='weight', amount=0.3, n=2, dim=0)
+        elif isinstance(module, nn.Linear):
+            # 剪枝20%的神经元
+            prune.l1_unstructured(module, name='weight', amount=0.2)
+
+def unstructured_prune_example(model):
+    """
+    非结构化剪枝示例:移除个别权重
+    """
+    parameters_to_prune = []
+    for module in model.modules():
+        if isinstance(module, (nn.Linear, nn.Conv2d)):
+            parameters_to_prune.append((module, 'weight'))
+    
+    # 全局剪枝:在所有参数中选择最不重要的20%进行剪枝
+    prune.global_unstructured(
+        parameters_to_prune,
+        pruning_method=prune.L1Unstructured,
+        amount=0.2,
+    )
 ```
 
 ### 剪枝策略
 
-1. 结构化剪枝
+1. **结构化剪枝**: 通过移除整个通道或层来简化模型结构。
+   - **通道级剪枝**: 移除不重要的卷积核通道，减少计算量。
+   - **层级剪枝**: 移除不重要的网络层，简化模型深度。
 
-   * 通道级剪枝
-   * 层级剪枝
-2. 非结构化剪枝
+2. **非结构化剪枝**: 逐个移除不重要的权重或连接，灵活性更高。
+   - **权重级剪枝**: 移除个别不重要的权重，适用于稀疏化模型。
+   - **连接级剪枝**: 移除神经元之间的连接，减少计算复杂度。
 
-   * 权重级剪枝
-   * 连接级剪枝
+通过这些策略，剪枝技术能够在保持模型性能的同时，显著减少模型的大小和计算需求。
 
 ## 最佳实践
 
