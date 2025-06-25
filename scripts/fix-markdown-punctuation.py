@@ -89,27 +89,52 @@ class MarkdownPunctuationFixer:
     def fix_content(self, content: str) -> Tuple[str, List[str]]:
         """修复内容，返回修复后的内容和修改记录"""
         changes = []
-        fixed_content = content
+        lines = content.split('\n')
         
-        # 修复中文标点
+        # 跟踪代码块状态
+        in_code_block = False
+        
+        # 逐行处理，排除代码块内容
+        for i, line in enumerate(lines):
+            # 检查代码块边界
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+                continue
+            
+            # 跳过代码块内的内容
+            if in_code_block:
+                continue
+            
+            # 修复中文标点
+            original_line = line
+            for chinese_punct, english_punct in self.punctuation_fixes.items():
+                if chinese_punct in line:
+                    line = line.replace(chinese_punct, english_punct)
+            
+            # 修复粗体标签后缺少空格的问题
+            def add_space_after_colon(match):
+                return match.group(0) + ' '
+            
+            line = self.bold_label_pattern.sub(add_space_after_colon, line)
+            
+            # 更新行内容
+            if line != original_line:
+                lines[i] = line
+        
+        fixed_content = '\n'.join(lines)
+        
+        # 统计修改次数
         for chinese_punct, english_punct in self.punctuation_fixes.items():
-            if chinese_punct in fixed_content:
-                count = fixed_content.count(chinese_punct)
-                fixed_content = fixed_content.replace(chinese_punct, english_punct)
-                changes.append(f"替换 {count} 个 '{chinese_punct}' -> '{english_punct}'")
+            original_count = content.count(chinese_punct)
+            fixed_count = fixed_content.count(chinese_punct)
+            if original_count > fixed_count:
+                changes.append(f"替换 {original_count - fixed_count} 个 '{chinese_punct}' -> '{english_punct}'")
         
-        # 修复粗体标签后缺少空格的问题
-        def add_space_after_colon(match):
-            return match.group(0) + ' '
-        
-        original_content = fixed_content
-        fixed_content = self.bold_label_pattern.sub(add_space_after_colon, fixed_content)
-        
-        if fixed_content != original_content:
-            # 计算修复的粗体标签数量
-            fixed_labels = len(self.bold_label_pattern.findall(original_content))
-            if fixed_labels > 0:
-                changes.append(f"为 {fixed_labels} 个粗体标签后添加空格")
+        # 统计粗体标签修复
+        original_bold_issues = len(self.bold_label_pattern.findall(content))
+        fixed_bold_issues = len(self.bold_label_pattern.findall(fixed_content))
+        if original_bold_issues > fixed_bold_issues:
+            changes.append(f"为 {original_bold_issues - fixed_bold_issues} 个粗体标签后添加空格")
         
         return fixed_content, changes
 

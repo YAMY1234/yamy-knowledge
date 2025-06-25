@@ -183,50 +183,80 @@ class MarkdownHeadingChecker:
                     content = content[content_start:]
                     lines = content.split('\n')
             
-            # 检查文档是否足够长
-            if len(content) < self.long_content_threshold:
-                return issues
+            # 检查是否有一级标题需要降级（排除代码块）
+            content_lines = lines if content_start == 0 else content.split('\n')
+            has_h1 = False
+            in_code_block = False
+            for line in content_lines:
+                stripped = line.strip()
+                # 检查代码块边界
+                if stripped.startswith('```'):
+                    in_code_block = not in_code_block
+                    continue
+                # 跳过代码块内的内容
+                if in_code_block:
+                    continue
+                # 检查一级标题
+                if re.match(r'^# [^#]', stripped):  # 匹配 "# " 开头但后面不是 #
+                    has_h1 = True
+                    break
             
-            # 统计各级标题
-            h1_count = 0
-            h2_count = 0
-            h3_count = 0
-            escaped_bold_count = 0
+            if has_h1:
+                issues['需要降级一级标题'] = [(0, "检测到一级标题，需要降级以支持导航栏显示")]
             
-            h1_lines = []
-            potential_headings = []  # 可能应该是标题的粗体文本
-            escaped_bold_lines = []
-            
-            for line_num, line in enumerate(lines, 1):
-                line = line.strip()
+            # 只对长文档进行其他检查
+            if len(content) >= self.long_content_threshold:
+                # 统计各级标题
+                h1_count = 0
+                h2_count = 0
+                h3_count = 0
+                escaped_bold_count = 0
                 
-                # 统计标题
-                if line.startswith('# '):
-                    h1_count += 1
-                    h1_lines.append((line_num + content_start // len('\n'), line))
-                elif line.startswith('## '):
-                    h2_count += 1
-                elif line.startswith('### '):
-                    h3_count += 1
+                h1_lines = []
+                potential_headings = []  # 可能应该是标题的粗体文本
+                escaped_bold_lines = []
                 
-                # 检查转义的粗体格式
-                if r'\*\*' in line:
-                    escaped_bold_count += 1
-                    escaped_bold_lines.append((line_num + content_start // len('\n'), line))
+                # 统计标题时也要排除代码块
+                in_code_block = False
+                for line_num, line in enumerate(lines, 1):
+                    stripped = line.strip()
+                    
+                    # 检查代码块边界
+                    if stripped.startswith('```'):
+                        in_code_block = not in_code_block
+                        continue
+                    
+                    # 跳过代码块内的内容
+                    if in_code_block:
+                        continue
+                    
+                    # 统计标题
+                    if stripped.startswith('# '):
+                        h1_count += 1
+                        h1_lines.append((line_num + content_start // len('\n'), stripped))
+                    elif stripped.startswith('## '):
+                        h2_count += 1
+                    elif stripped.startswith('### '):
+                        h3_count += 1
+                    
+                    # 检查转义的粗体格式
+                    if r'\*\*' in stripped:
+                        escaped_bold_count += 1
+                        escaped_bold_lines.append((line_num + content_start // len('\n'), stripped))
+                    
+                    # 检查可能应该是标题的粗体文本
+                    if re.match(r'^\*\*[^*]+:\*\*', stripped) or re.match(r'^\*\*[^*]+\*\*$', stripped):
+                        potential_headings.append((line_num + content_start // len('\n'), stripped))
                 
-                # 检查可能应该是标题的粗体文本
-                if re.match(r'^\*\*[^*]+:\*\*', line) or re.match(r'^\*\*[^*]+\*\*$', line):
-                    potential_headings.append((line_num + content_start // len('\n'), line))
-            
-            # 判断问题
-            if h1_count > 3 and h2_count < self.min_h2_headings:
-                issues['缺少二级标题层级结构'] = [(0, f"文档有{h1_count}个一级标题，但只有{h2_count}个二级标题，建议增加层级结构")]
-            
-            if escaped_bold_count > 0:
-                issues['错误的粗体转义格式'] = escaped_bold_lines[:5]  # 最多显示5个
-            
-            if len(potential_headings) > 2:
-                issues['可能应该改为标题的粗体文本'] = potential_headings[:5]  # 最多显示5个
+                # 判断问题
+                if h1_count > 3 and h2_count < self.min_h2_headings:
+                    issues['缺少二级标题层级结构'] = [(0, f"文档有{h1_count}个一级标题，但只有{h2_count}个二级标题，建议增加层级结构")]
+                
+                if escaped_bold_count > 0:
+                    issues['错误的粗体转义格式'] = escaped_bold_lines[:5]  # 最多显示5个
+                
+                if len(potential_headings) > 2:
+                    issues['可能应该改为标题的粗体文本'] = potential_headings[:5]  # 最多显示5个
         
         except Exception as e:
             print(f"警告: 无法扫描文件 {file_path} ({e})")
@@ -243,23 +273,14 @@ class MarkdownHeadingChecker:
             
             original_content = content
             
-            # 修复转义的粗体格式
-            content = re.sub(r'\\?\*\\?\*([^*]+)\\?\*\\?\*', r'**\1**', content)
+            # 修复内容，但排除代码块
+            content = self._fix_content_excluding_code_blocks(content)
             
-            # 修复粗体后缺少空格的问题
-            content = re.sub(r'\*\*([^*]+):\*\*([^\s])', r'**\1:** \2', content)
+            # 降级一级标题（如果存在）
+            content = self._downgrade_headings_if_needed(content)
             
-            # 将特定的粗体标记模式转换为标题，但要谨慎，避免转换重要内容
-            # 只转换独立行上的特定模式，并且要确保不是重要的主题内容
-            
-            # 匹配如 "**实现细节:**" 这样在单独行上的模式，转换为二级标题
-            content = re.sub(r'^\*\*([^*]*(?:实现|特点|优势|机制|影响|解析|场景|支持|优化|问题|细节|方法|策略|原理)[^*]*)\*\*\s*$', r'## \1', content, flags=re.MULTILINE)
-            
-            # 匹配如 "**概念:**" 这样带冒号的模式
-            content = re.sub(r'^\*\*([^*]+):\*\*\s*$', r'## \1', content, flags=re.MULTILINE)
-            
-            # 清理转换后可能产生的多余冒号
-            content = re.sub(r'^## ([^:]+):\s*$', r'## \1', content, flags=re.MULTILINE)
+            # 全局调整标题级别
+            content, _ = self._adjust_heading_levels_globally(content)
             
             if content != original_content:
                 if backup:
@@ -276,6 +297,181 @@ class MarkdownHeadingChecker:
             print(f"警告: 无法修复文件 {file_path} ({e})")
         
         return False
+    
+    def _fix_content_excluding_code_blocks(self, content):
+        """修复内容，但排除代码块"""
+        import re
+        
+        lines = content.split('\n')
+        in_code_block = False
+        
+        for i, line in enumerate(lines):
+            # 检查代码块边界
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+                continue
+            
+            # 跳过代码块内的内容
+            if in_code_block:
+                continue
+            
+            # 修复转义的粗体格式
+            line = re.sub(r'\\?\*\\?\*([^*]+)\\?\*\\?\*', r'**\1**', line)
+            
+            # 修复粗体后缺少空格的问题
+            line = re.sub(r'\*\*([^*]+):\*\*([^\s])', r'**\1:** \2', line)
+            
+            # 将特定的粗体标记模式转换为标题
+            # 匹配如 "**实现细节:**" 这样在单独行上的模式，转换为二级标题
+            line = re.sub(r'^\*\*([^*]*(?:实现|特点|优势|机制|影响|解析|场景|支持|优化|问题|细节|方法|策略|原理)[^*]*)\*\*\s*$', r'## \1', line)
+            
+            # 匹配如 "**概念:**" 这样带冒号的模式
+            line = re.sub(r'^\*\*([^*]+):\*\*\s*$', r'## \1', line)
+            
+            # 清理转换后可能产生的多余冒号
+            line = re.sub(r'^## ([^:]+):\s*$', r'## \1', line)
+            
+            lines[i] = line
+        
+        return '\n'.join(lines)
+    
+    def _downgrade_headings_if_needed(self, content):
+        """检查是否需要降级标题，如果有一级标题就将所有标题降一级"""
+        import re
+        
+        # 跳过 frontmatter
+        lines = content.split('\n')
+        content_start = 0
+        if lines and lines[0].strip() == '---':
+            # 寻找frontmatter结束
+            for i, line in enumerate(lines[1:], 1):
+                if line.strip() == '---':
+                    content_start = i + 1
+                    break
+        
+        # 获取实际内容部分
+        content_lines = lines[content_start:]
+        
+        # 检查是否有一级标题（# 开头但不是 ## 或更多#）
+        has_h1 = False
+        for line in content_lines:
+            line = line.strip()
+            if re.match(r'^# [^#]', line):  # 匹配 "# " 开头但后面不是 #
+                has_h1 = True
+                break
+        
+        if not has_h1:
+            return content
+        
+        # 如果有一级标题，需要降级所有标题
+        print("  检测到一级标题，将所有标题降级以支持导航栏显示")
+        
+        # 重新组合内容
+        result_lines = lines[:content_start]  # 保留 frontmatter
+        
+        for line in content_lines:
+            # 降级标题：# -> ##, ## -> ###, ### -> ####, 等等
+            if re.match(r'^#{1,5} ', line):
+                # 在开头添加一个 #
+                result_lines.append('#' + line)
+            else:
+                result_lines.append(line)
+        
+        return '\n'.join(result_lines)
+
+    def _adjust_heading_levels_globally(self, content: str) -> tuple[str, bool]:
+        """
+        全局调整标题级别：
+        - 如果最小标题级别是###或更高，全局删掉一个#
+        - 如果最小标题级别是#，全局添加一个#
+        """
+        lines = content.split('\n')
+        
+        # 跳过 frontmatter
+        content_start = 0
+        if lines and lines[0].strip() == '---':
+            # 寻找frontmatter结束
+            for i, line in enumerate(lines[1:], 1):
+                if line.strip() == '---':
+                    content_start = i + 1
+                    break
+        
+        # 获取实际内容部分
+        content_lines = lines[content_start:]
+        heading_lines = []
+        
+        # 跟踪代码块状态
+        in_code_block = False
+        
+        # 找出所有标题行和它们的级别
+        for i, line in enumerate(content_lines):
+            stripped = line.strip()
+            
+            # 检查代码块边界
+            if stripped.startswith('```'):
+                in_code_block = not in_code_block
+                continue
+            
+            # 跳过代码块内的内容
+            if in_code_block:
+                continue
+            
+            # 检查是否是真正的标题（行首是#，且不在代码块中）
+            if stripped.startswith('#'):
+                # 计算标题级别
+                level = 0
+                for char in stripped:
+                    if char == '#':
+                        level += 1
+                    else:
+                        break
+                
+                # 确保#后面有空格，这是标准的markdown标题格式
+                # 支持1-6级标题，但我们会将超过4级的标题调整到合理范围内
+                if level > 0 and level <= 6 and len(stripped) > level and stripped[level] == ' ':
+                    heading_lines.append((i, level, stripped))
+        
+        if not heading_lines:
+            return content, False
+            
+        # 找到最小标题级别
+        min_level = min(level for _, level, _ in heading_lines)
+        
+        modified = False
+        
+        # 决定调整策略
+        if min_level >= 3:
+            # 最小级别是###或更高，全局删掉一个#
+            for i, level, heading_text in heading_lines:
+                if level > 1:  # 确保不会变成0级标题
+                    new_level = max(1, level - 1)  # 最少是1级标题
+                    new_heading = '#' * new_level + heading_text[level:]
+                    # 只替换行首的标题，使用更精确的匹配
+                    if content_lines[i].strip().startswith(heading_text):
+                        content_lines[i] = content_lines[i].replace(heading_text, new_heading, 1)  # 只替换第一个匹配
+                        modified = True
+        elif min_level == 1:
+            # 最小级别是#，全局添加一个#
+            for i, level, heading_text in heading_lines:
+                new_level = min(4, level + 1)  # 最多是4级标题
+                new_heading = '#' * new_level + heading_text[level:]
+                # 只替换行首的标题，使用更精确的匹配
+                if content_lines[i].strip().startswith(heading_text):
+                    content_lines[i] = content_lines[i].replace(heading_text, new_heading, 1)  # 只替换第一个匹配
+                    modified = True
+        
+        # 额外处理：将所有超过4级的标题调整为4级
+        for i, level, heading_text in heading_lines:
+            if level > 4:
+                new_heading = '#### ' + heading_text[level:].lstrip()
+                # 只替换行首的标题，使用更精确的匹配
+                if content_lines[i].strip().startswith(heading_text):
+                    content_lines[i] = content_lines[i].replace(heading_text, new_heading, 1)  # 只替换第一个匹配
+                    modified = True
+        
+        # 重新组合完整内容
+        result_lines = lines[:content_start] + content_lines
+        return '\n'.join(result_lines), modified
 
 
 class PreCommitChecker:
