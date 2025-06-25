@@ -1,6 +1,7 @@
 ---
 id: llm-ethics
 sidebar_position: 2
+title: LLM 的伦理与安全
 ---
 
 # LLM 的伦理与安全

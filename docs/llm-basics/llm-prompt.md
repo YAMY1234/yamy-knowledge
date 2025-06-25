@@ -1,5 +1,6 @@
 ---
 id: llm-prompt
+title: Prompt 设计与技巧
 sidebar_position: 4
 ---
 

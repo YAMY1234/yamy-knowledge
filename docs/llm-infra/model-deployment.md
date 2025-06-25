@@ -1,6 +1,7 @@
 ---
 id: model-deployment
 sidebar_position: 3
+title: 模型部署
 ---
 
 # 模型部署

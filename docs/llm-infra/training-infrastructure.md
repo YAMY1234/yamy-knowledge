@@ -1,6 +1,7 @@
 ---
 id: training-infrastructure
 sidebar_position: 1
+title: 训练基础设施
 ---
 
 # 训练基础设施

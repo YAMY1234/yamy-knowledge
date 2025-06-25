@@ -1,6 +1,7 @@
 ---
 id: llm-trend
 sidebar_position: 3
+title: LLM 发展趋势
 ---
 
 # LLM 发展趋势

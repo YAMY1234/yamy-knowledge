@@ -1,5 +1,6 @@
 ---
 id: llm-principle
+title: LLM 的基本原理
 sidebar_position: 2
 ---
 

@@ -1,5 +1,6 @@
 ---
 id: llm-applications
+title: LLM 的应用案例
 sidebar_position: 5
 ---
 # LLM 的应用案例
