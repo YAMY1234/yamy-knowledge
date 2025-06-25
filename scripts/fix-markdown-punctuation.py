@@ -65,10 +65,23 @@ class MarkdownPunctuationFixer:
             print(f"无法读取文件 {file_path}: {e}")
             return issues
         
+        # 跟踪代码块状态
+        in_code_block = False
+        
         # 检查中文标点问题
         for category, pattern in self.chinese_punct_patterns.items():
             found_issues = []
+            in_code_block = False  # 重置代码块状态
+            
             for line_num, line in enumerate(lines, 1):
+                # 检查代码块边界
+                if line.strip().startswith('```'):
+                    in_code_block = not in_code_block
+                
+                # 跳过代码块内的内容
+                if in_code_block:
+                    continue
+                    
                 matches = pattern.findall(line)
                 if matches:
                     found_issues.append((line_num, line.strip()))
@@ -78,7 +91,17 @@ class MarkdownPunctuationFixer:
         # 检查格式问题
         for category, pattern in self.format_patterns.items():
             found_issues = []
+            in_code_block = False  # 重置代码块状态
+            
             for line_num, line in enumerate(lines, 1):
+                # 检查代码块边界
+                if line.strip().startswith('```'):
+                    in_code_block = not in_code_block
+                
+                # 跳过代码块内的内容
+                if in_code_block:
+                    continue
+                    
                 if pattern.search(line):
                     found_issues.append((line_num, line.strip()))
             if found_issues:
@@ -99,7 +122,7 @@ class MarkdownPunctuationFixer:
             # 检查代码块边界
             if line.strip().startswith('```'):
                 in_code_block = not in_code_block
-                continue
+                # 不要continue，要继续处理当前行（但不修复代码块标记行）
             
             # 跳过代码块内的内容
             if in_code_block:

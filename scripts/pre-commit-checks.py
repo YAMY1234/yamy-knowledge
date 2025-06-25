@@ -535,7 +535,13 @@ class PreCommitChecker:
             if fix_mode:
                 if self.punct_fixer.fix_file(file_path):
                     print(f"  ✓ 中文标点问题已修复")
-                    has_issues = False  # 已修复
+                    # 重新扫描确认修复效果
+                    recheck_issues = self.punct_fixer.scan_file(file_path)
+                    if not recheck_issues:
+                        has_issues = False  # 确认已修复
+                    else:
+                        print(f"  ⚠️ 修复后仍有问题，可能在代码块中")
+                        has_issues = True
         
         # MDX语法检查
         mdx_syntax_issues = self.mdx_syntax_checker.scan_file(file_path)
