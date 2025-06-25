@@ -42,6 +42,15 @@ collections:
       - { label: "标题", name: "title", widget: "string", required: true }
       - { label: "内容", name: "body", widget: "markdown", required: true }
 
+  - name: "inference-optimization"
+    label: "推理优化详解"
+    folder: "docs/llm-infra/inference-optimization"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "标题", name: "title", widget: "string", required: true }
+      - { label: "内容", name: "body", widget: "markdown", required: true }
+
   - name: "blog"
     label: "博客文章"
     folder: "blog"
@@ -51,4 +60,4 @@ collections:
       - { label: "标题", name: "title", widget: "string", required: true }
       - { label: "作者", name: "authors", widget: "list", allow_add: true, required: false }
       - { label: "标签", name: "tags", widget: "list", allow_add: true, required: false }
-      - { label: "内容", name: "body", widget: "markdown", required: true } 
+      - { label: "内容", name: "body", widget: "markdown", required: true }
