@@ -21,6 +21,12 @@ const config = {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
+  // Mermaid markdown support
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
+
   // Set the production url of your site here
   url: 'https://yamy-knowledge.vercel.app',
   // Set the /<baseUrl>/ pathname under which your site is served

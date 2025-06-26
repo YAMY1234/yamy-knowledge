@@ -88,25 +88,25 @@ MQA/GQA不仅减少内存占用，也**略微加速**了推理时注意力计算
 ```mermaid
 graph TD
     subgraph "Attention机制演进"
-        A[Multi-Head Attention - MHA] --> B[Multi Query Attention - MQA]
-        B --> C[Group Query Attention - GQA]  
-        C --> D[Multi-Head Latent Attention - MLA]
+        A["Multi-Head Attention<br/>MHA"] --> B["Multi Query Attention<br/>MQA"]
+        B --> C["Group Query Attention<br/>GQA"]  
+        C --> D["Multi-Head Latent Attention<br/>MLA"]
     end
 
     subgraph "MHA结构"
-        A1["Value: 每个头独立<br/>Key: 每个头独立<br/>Query: 每个头独立"] 
+        A1["每个头都有独立的<br/>Query、Key、Value"] 
     end
     
     subgraph "MQA结构"
-        B1["Value: 共享单一投影<br/>Key: 共享单一投影<br/>Query: 每个头独立"]
+        B1["共享单一的Key/Value<br/>Query保持独立"]
     end
     
     subgraph "GQA结构"  
-        C1["Value: 分组共享<br/>Key: 分组共享<br/>Query: 每个头独立"]
+        C1["分组共享Key/Value<br/>Query保持独立"]
     end
     
     subgraph "MLA结构"
-        D1["Value: 压缩潜在投影<br/>Key: 压缩潜在投影<br/>Query: 每个头独立"]
+        D1["压缩到低维潜在空间<br/>提高计算效率"]
     end
     
     A -.-> A1
