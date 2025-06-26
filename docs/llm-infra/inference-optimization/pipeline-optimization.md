@@ -395,12 +395,13 @@ Q_h = XW_h^Q, \quad K_h = XW_h^K, \quad V_h = XW_h^V
 ```
 
 而在MLA中，引入了潜在压缩机制:
-```math
-\begin{align}
-c &= XW^c \quad \text{(压缩到潜在空间)} \\
-k_h &= c W_h^{kc}, \quad v_h = c W_h^{vc} \quad \text{(从潜在空间生成K/V)} \\
-q_h &= XW_h^Q \quad \text{(Query保持原始维度)}
-```
+$$
+\begin{aligned}
+c &= XW^c \quad \text{(compress to latent space)} \\
+k_h &= c W_h^{kc}, \quad v_h = c W_h^{vc} \quad \text{(generate K/V from latent space)} \\
+q_h &= XW_h^Q \quad \text{(Query maintains original dimensions)}
+\end{aligned}
+$$
 
 其中 $W^c$ 是压缩矩阵，$W_h^{kc}, W_h^{vc}$ 是从潜在空间到Key/Value的解压矩阵。
 
@@ -488,8 +489,6 @@ LLM推理优化在近两年是大热点，多项研究和工程创新不断涌�
 综上所述，大语言模型在企业级GPU集群上的推理优化涉及从模型结构、运行时系统到硬件协同的全方位技术。通过模块化的架构设计、智能调度、缓存管理和多种加速策略的结合，当前的LLM推理性能相比几年前已有数量级的提升。展望未来，随着硬件进步和新算法涌现，我们有理由相信LLM推理效率还将持续攀升，使得更大更智能的模型能够以更低成本、更快响应服务于实际应用。本文所述知识体系和架构原则，希望能为相关技术人员提供一份详尽的参考，在实践中设计出高性能的LLM推理系统。
 
 ---
-
-## 脚注
 
 [^1]: 潜在空间压缩是一种降维技术，通过学习输入数据的低维表示来减少计算复杂度。在MLA中，这种压缩主要应用于Key和Value矩阵，能够显著减少注意力计算的时间和空间复杂度。
 
