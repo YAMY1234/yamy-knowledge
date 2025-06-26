@@ -106,7 +106,7 @@ deepspeed --num_gpus=4 --pipeline-parallel --pipeline-balanced
 <details>
 <summary><strong>💡 点击展开: Medusa推测树的详细工作机制</strong></summary>
 
-### 推测树的构建过程
+**推测树的构建过程**
 
 **传统推测解码 vs Medusa树状推测: **
 
@@ -131,7 +131,7 @@ Medusa树状推测:
 - **Head 2**: 基于Head 1的每个候选，预测再下一个token  
 - **Head 3**: 继续向前预测更深层的token
 
-### Target Model的并行验证
+**Target Model的并行验证**
 
 **关键创新: 批量并行验证**
 
@@ -167,7 +167,7 @@ on  big  old
 2. **位置2**: Target model预测"on"，在"sat"分支中找到"on" → 接受 ✓  
 3. **最终路径**: ["sat", "on"]，一次获得2个token
 
-### 技术优势
+**技术优势**
 
 - **并行效率**: 一次forward验证整个树，充分利用GPU并行计算
 - **更高接受率**: 多分支设计增加命中target model预测的概率
@@ -180,7 +180,7 @@ on  big  old
 <details>
 <summary><strong>🔍 点击展开: Lookahead解码的详细工作机制</strong></summary>
 
-### 基于统计模式的预测策略
+**基于统计模式的预测策略**
 
 **核心理念: 未来窥视 + 模式识别**
 
@@ -194,7 +194,7 @@ Lookahead解码不依赖额外的draft model，而是通过分析训练数据中
 | Medusa | 多头树状预测 | 需要 | 多样化延续任务 |
 | Lookahead | 统计模式分析 | 不需要 | 结构化/模板化内容 |
 
-### 统计分析的实现机制
+**统计分析的实现机制**
 
 **1. 模式库构建**
 
@@ -232,7 +232,7 @@ def build_pattern_library(training_data):
             └─────────────────────┘
 ```
 
-### 验证与回退机制
+**验证与回退机制**
 
 **并行验证过程: **
 
@@ -258,7 +258,7 @@ candidates = [
 verified_sequence = "if arr[i] > max_val:"
 ```
 
-### 适应性优化策略
+**适应性优化策略**
 
 **1. 上下文敏感的模式选择**
 
@@ -280,7 +280,7 @@ Lookahead会根据验证历史动态调整预测策略:
 - **低置信场景**: 缩小窗口，采取保守策略
 - **失败回退**: 当连续预测失败时，自动降级为标准解码
 
-### 性能优势分析
+**性能优势分析**
 
 **加速效果: **
 - **代码生成**: 在函数模板、循环结构等场景下加速比可达3-5倍
@@ -292,7 +292,7 @@ Lookahead会根据验证历史动态调整预测策略:
 - 模式库大小通常< 100MB，相比GB级别的draft model极其轻量
 - 可根据应用场景裁剪模式库，进一步优化内存使用
 
-### 局限性与适用边界
+**局限性与适用边界**
 
 **优势场景: **
 - 高度结构化的内容生成(代码、配置文件、数据格式)
@@ -387,7 +387,7 @@ $$\text{head}_h = \text{Attention}(XW_h^Q, XW_h^K, XW_h^V)$$
 <details>
 <summary>💡 <strong>点击展开:MLA实现细节与数学推导</strong></summary>
 
-### MLA的数学表示
+**MLA的数学表示**
 
 在传统的多头注意力中，每个头 $h$ 都有独立的投影:
 ```math
@@ -405,7 +405,7 @@ $$
 
 其中 $W^c$ 是压缩矩阵，$W_h^{kc}, W_h^{vc}$ 是从潜在空间到Key/Value的解压矩阵。
 
-### 复杂度分析
+**复杂度分析**
 - **传统MHA**: $O(d \cdot d \cdot h)$ 参数用于K/V投影
 - **MLA**: $O(d \cdot d_c + d_c \cdot d \cdot h)$ 其中 $d_c \ll d$
 
