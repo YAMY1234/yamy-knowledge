@@ -244,8 +244,11 @@ class MarkdownHeadingChecker:
                         escaped_bold_count += 1
                         escaped_bold_lines.append((line_num + content_start // len('\n'), stripped))
                     
-                    # 检查可能应该是标题的粗体文本
-                    if re.match(r'^\*\*[^*]+:\*\*', stripped) or re.match(r'^\*\*[^*]+\*\*$', stripped):
+                    # 更严格地检查可能应该是标题的粗体文本
+                    # 只有当粗体文本独占一行，且不是以冒号结尾的概念定义时，才认为可能是标题
+                    if (re.match(r'^\*\*[^*]+\*\*$', stripped) and  # 独行的粗体文本
+                        not re.match(r'^\*\*[^*]+:\*\*', stripped) and  # 排除概念定义格式（以冒号结尾）
+                        not line.strip().endswith(':')):  # 排除其他以冒号结尾的情况
                         potential_headings.append((line_num + content_start // len('\n'), stripped))
                 
                 # 判断问题
@@ -255,7 +258,8 @@ class MarkdownHeadingChecker:
                 if escaped_bold_count > 0:
                     issues['错误的粗体转义格式'] = escaped_bold_lines[:5]  # 最多显示5个
                 
-                if len(potential_headings) > 2:
+                # 只有在有足够多的符合条件的粗体文本时才报告问题
+                if len(potential_headings) > 3:
                     issues['可能应该改为标题的粗体文本'] = potential_headings[:5]  # 最多显示5个
         
         except Exception as e:
