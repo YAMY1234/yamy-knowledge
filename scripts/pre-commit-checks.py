@@ -25,6 +25,7 @@ python3 scripts/pre-commit-checks.py [--fix] [--staged-only]
 - heading_level_adjustment: 标题级别调整/批量增减#（默认关闭）
 - bold_to_heading_conversion: 粗体转标题功能（默认关闭）
 - heading_downgrade: 一级标题降级功能（默认关闭）
+- details_heading_conversion: details块中标题转粗体格式（默认开启）
 
 标题结构检查功能（已默认关闭）:
 - 检测长文档缺少二级标题层级结构的问题
@@ -53,6 +54,7 @@ FEATURE_CONFIG = {
     'heading_level_adjustment': False,  # 标题级别调整（批量增减#）
     'bold_to_heading_conversion': False, # 粗体转标题功能
     'heading_downgrade': False,         # 一级标题降级功能
+    'details_heading_conversion': True,  # details块中标题转粗体格式（默认开启）
 }
 # ============================================================
 
@@ -520,12 +522,179 @@ class MarkdownHeadingChecker:
         return '\n'.join(result_lines), modified
 
 
+class DetailsHeadingConverter:
+    """转换details块中的标题格式为粗体格式"""
+    
+    def __init__(self):
+        pass
+    
+    def scan_file(self, file_path):
+        """扫描文件中details块内的标题问题"""
+        import re
+        issues = {}
+        
+        # 如果details标题转换功能被禁用，直接返回空结果
+        if not FEATURE_CONFIG.get('details_heading_conversion', True):
+            return issues
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 找到所有details块
+            details_blocks = self._find_details_blocks(content)
+            
+            for block_start, block_end, block_content in details_blocks:
+                # 在details块中查找标题
+                headings_found = self._find_headings_in_content(block_content)
+                
+                if headings_found:
+                    if 'details块中的标题格式' not in issues:
+                        issues['details块中的标题格式'] = []
+                    
+                    for line_offset, heading_text in headings_found:
+                        # 计算在整个文件中的行号
+                        lines_before_block = content[:block_start].count('\n')
+                        actual_line_num = lines_before_block + line_offset + 1
+                        issues['details块中的标题格式'].append((actual_line_num, heading_text.strip()))
+        
+        except Exception as e:
+            print(f"警告: 无法扫描文件 {file_path} ({e})")
+        
+        return issues
+    
+    def fix_file(self, file_path, backup=False):
+        """修复文件中details块内的标题格式"""
+        import re
+        
+        # 如果details标题转换功能被禁用，直接返回False
+        if not FEATURE_CONFIG.get('details_heading_conversion', True):
+            return False
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            original_content = content
+            
+            # 转换details块中的标题
+            content = self._convert_headings_in_details(content)
+            
+            if content != original_content:
+                if backup:
+                    backup_path = str(file_path) + '.bak'
+                    with open(backup_path, 'w', encoding='utf-8') as f:
+                        f.write(original_content)
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                
+                return True
+        
+        except Exception as e:
+            print(f"警告: 无法修复文件 {file_path} ({e})")
+        
+        return False
+    
+    def _find_details_blocks(self, content):
+        """找到所有details块的位置和内容"""
+        import re
+        
+        details_blocks = []
+        
+        # 使用正则表达式找到所有details块
+        pattern = r'<details>(.*?)</details>'
+        
+        for match in re.finditer(pattern, content, re.DOTALL):
+            start_pos = match.start()
+            end_pos = match.end()
+            block_content = match.group(1)
+            details_blocks.append((start_pos, end_pos, block_content))
+        
+        return details_blocks
+    
+    def _find_headings_in_content(self, content):
+        """在给定内容中查找标题，排除代码块"""
+        import re
+        
+        lines = content.split('\n')
+        headings = []
+        in_code_block = False
+        
+        for line_num, line in enumerate(lines):
+            stripped = line.strip()
+            
+            # 检查代码块边界
+            if stripped.startswith('```'):
+                in_code_block = not in_code_block
+                continue
+            
+            # 跳过代码块内的内容
+            if in_code_block:
+                continue
+            
+            # 检查是否是标题（## 或 ###）
+            if re.match(r'^#{2,3}\s+', stripped):
+                headings.append((line_num, line))
+        
+        return headings
+    
+    def _convert_headings_in_details(self, content):
+        """转换details块中的标题格式"""
+        import re
+        
+        def convert_details_block(match):
+            details_content = match.group(1)
+            
+            # 在details内容中转换标题
+            converted_content = self._convert_headings_in_block_content(details_content)
+            
+            return f'<details>{converted_content}</details>'
+        
+        # 处理所有details块
+        pattern = r'<details>(.*?)</details>'
+        return re.sub(pattern, convert_details_block, content, flags=re.DOTALL)
+    
+    def _convert_headings_in_block_content(self, content):
+        """转换块内容中的标题，排除代码块"""
+        import re
+        
+        lines = content.split('\n')
+        result_lines = []
+        in_code_block = False
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # 检查代码块边界
+            if stripped.startswith('```'):
+                in_code_block = not in_code_block
+                result_lines.append(line)
+                continue
+            
+            # 跳过代码块内的内容
+            if in_code_block:
+                result_lines.append(line)
+                continue
+            
+            # 转换标题格式
+            # 将 ### 标题转换为 **标题**
+            line = re.sub(r'^(\s*)###\s+(.+)$', r'\1**\2**', line)
+            # 将 ## 标题转换为 **标题**
+            line = re.sub(r'^(\s*)##\s+(.+)$', r'\1**\2**', line)
+            
+            result_lines.append(line)
+        
+        return '\n'.join(result_lines)
+
+
 class PreCommitChecker:
     def __init__(self):
         self.mdx_fixer = MDXTableFixer()
         self.punct_fixer = MarkdownPunctuationFixer()
         self.mdx_syntax_checker = MDXSyntaxChecker()
         self.heading_checker = MarkdownHeadingChecker()
+        self.details_converter = DetailsHeadingConverter()
         self.errors_found = False
     
     def get_staged_files(self) -> List[Path]:
@@ -621,6 +790,22 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.heading_checker.fix_file(file_path):
                         print(f"  ✓ 标题结构问题已修复")
+                        has_issues = False  # 已修复
+        
+        # Details块标题转换检查（根据配置决定）
+        if FEATURE_CONFIG.get('details_heading_conversion', True):
+            details_issues = self.details_converter.scan_file(file_path)
+            if details_issues:
+                has_issues = True
+                for issue_type, issue_list in details_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.details_converter.fix_file(file_path):
+                        print(f"  ✓ Details块标题格式已修复")
                         has_issues = False  # 已修复
         
         if not has_issues:
