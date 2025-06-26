@@ -27,6 +27,7 @@ python3 scripts/pre-commit-checks.py [--fix] [--staged-only]
 - heading_downgrade: 一级标题降级功能（默认关闭）
 - details_heading_conversion: details块中标题转粗体格式（默认开启）
 - bold_spacing_fix: 修复粗体标记边界空格问题（默认开启）
+- bold_surrounding_spacing: 确保粗体文本两边有适当空格（默认开启）
 
 标题结构检查功能（已默认关闭）:
 - 检测长文档缺少二级标题层级结构的问题
@@ -57,6 +58,7 @@ FEATURE_CONFIG = {
     'heading_downgrade': False,         # 一级标题降级功能
     'details_heading_conversion': True,  # details块中标题转粗体格式（默认开启）
     'bold_spacing_fix': True,           # 修复粗体标记边界空格问题（默认开启）
+    'bold_surrounding_spacing': True,   # 确保粗体文本两边有适当空格（默认开启）
 }
 # ============================================================
 
@@ -907,6 +909,202 @@ class BoldSpacingFixer:
         return ''.join(result)
 
 
+class BoldSurroundingSpacingFixer:
+    """确保粗体文本两边有适当的空格"""
+    
+    def __init__(self):
+        # 标点符号集合（中文和英文）
+        self.punctuation = set('.,;:!?，。；：！？、（）()[]{}「」『』""''""''…—–-')
+    
+    def scan_file(self, file_path):
+        """扫描文件中粗体文本周围空格问题"""
+        import re
+        issues = {}
+        
+        # 如果粗体周围空格功能被禁用，直接返回空结果
+        if not FEATURE_CONFIG.get('bold_surrounding_spacing', True):
+            return issues
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 排除代码块后查找问题
+            problematic_patterns = self._find_bold_surrounding_issues(content)
+            
+            if problematic_patterns:
+                issues['粗体文本周围空格问题'] = problematic_patterns
+        
+        except Exception as e:
+            print(f"警告: 无法扫描文件 {file_path} ({e})")
+        
+        return issues
+    
+    def fix_file(self, file_path, backup=False):
+        """修复文件中的粗体文本周围空格问题"""
+        import re
+        
+        # 如果粗体周围空格功能被禁用，直接返回False
+        if not FEATURE_CONFIG.get('bold_surrounding_spacing', True):
+            return False
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            original_content = content
+            
+            # 修复粗体文本周围空格问题
+            content = self._fix_bold_surrounding_spacing(content)
+            
+            if content != original_content:
+                if backup:
+                    backup_path = str(file_path) + '.bak'
+                    with open(backup_path, 'w', encoding='utf-8') as f:
+                        f.write(original_content)
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                
+                return True
+        
+        except Exception as e:
+            print(f"警告: 无法修复文件 {file_path} ({e})")
+        
+        return False
+    
+    def _find_bold_surrounding_issues(self, content):
+        """查找粗体文本周围空格问题，排除代码块"""
+        import re
+        
+        lines = content.split('\n')
+        issues = []
+        in_code_block = False
+        
+        for line_num, line in enumerate(lines, 1):
+            stripped = line.strip()
+            
+            # 检查代码块边界
+            if stripped.startswith('```'):
+                in_code_block = not in_code_block
+                continue
+            
+            # 跳过代码块内的内容
+            if in_code_block:
+                continue
+            
+            # 检查这一行是否有粗体周围空格问题
+            if self._has_bold_surrounding_issues(line):
+                issues.append((line_num, line.strip()[:80] + ('...' if len(line.strip()) > 80 else '')))
+        
+        return issues
+    
+    def _has_bold_surrounding_issues(self, text):
+        """检查单行中是否有粗体周围空格问题"""
+        import re
+        
+        # 查找所有完整的粗体块
+        bold_pattern = r'\*\*[^*]+\*\*'
+        matches = list(re.finditer(bold_pattern, text))
+        
+        for match in matches:
+            start_pos = match.start()
+            end_pos = match.end()
+            
+            # 分别检查前面和后面是否需要空格
+            need_space_before = False
+            need_space_after = False
+            
+            # 检查前面是否需要空格
+            if start_pos > 0:
+                prev_char = text[start_pos - 1]
+                # 如果前面不是空格、标点符号，则需要空格
+                if prev_char not in self.punctuation and prev_char != ' ':
+                    need_space_before = True
+            
+            # 检查后面是否需要空格
+            if end_pos < len(text):
+                next_char = text[end_pos]
+                # 如果后面不是空格、标点符号，则需要空格
+                if next_char not in self.punctuation and next_char != ' ':
+                    need_space_after = True
+            
+            # 只要有一边需要空格就返回True
+            if need_space_before or need_space_after:
+                return True
+        
+        return False
+    
+    def _fix_bold_surrounding_spacing(self, content):
+        """修复内容中的粗体文本周围空格问题，排除代码块"""
+        import re
+        
+        lines = content.split('\n')
+        result_lines = []
+        in_code_block = False
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # 检查代码块边界
+            if stripped.startswith('```'):
+                in_code_block = not in_code_block
+                result_lines.append(line)
+                continue
+            
+            # 跳过代码块内的内容
+            if in_code_block:
+                result_lines.append(line)
+                continue
+            
+            # 修复这一行的粗体周围空格问题
+            fixed_line = self._fix_bold_surrounding_spacing_in_line(line)
+            result_lines.append(fixed_line)
+        
+        return '\n'.join(result_lines)
+    
+    def _fix_bold_surrounding_spacing_in_line(self, text):
+        """修复单行中的粗体周围空格问题"""
+        import re
+        
+        # 查找所有完整的粗体块，从后往前处理以避免位置偏移
+        bold_pattern = r'\*\*[^*]+\*\*'
+        matches = list(re.finditer(bold_pattern, text))
+        
+        # 从后往前处理，避免位置偏移
+        for match in reversed(matches):
+            start_pos = match.start()
+            end_pos = match.end()
+            bold_text = match.group()
+            
+            # 检查并修复前面的空格
+            need_space_before = False
+            if start_pos > 0:
+                prev_char = text[start_pos - 1]
+                if prev_char not in self.punctuation and prev_char != ' ':
+                    need_space_before = True
+            
+            # 检查并修复后面的空格
+            need_space_after = False
+            if end_pos < len(text):
+                next_char = text[end_pos]
+                if next_char not in self.punctuation and next_char != ' ':
+                    need_space_after = True
+            
+            # 构建修复后的文本
+            if need_space_before or need_space_after:
+                new_bold_text = bold_text
+                if need_space_before:
+                    new_bold_text = ' ' + new_bold_text
+                if need_space_after:
+                    new_bold_text = new_bold_text + ' '
+                
+                # 替换原文本
+                text = text[:start_pos] + new_bold_text + text[end_pos:]
+        
+        return text
+
+
 class PreCommitChecker:
     def __init__(self):
         self.mdx_fixer = MDXTableFixer()
@@ -915,6 +1113,7 @@ class PreCommitChecker:
         self.heading_checker = MarkdownHeadingChecker()
         self.details_converter = DetailsHeadingConverter()
         self.bold_spacing_fixer = BoldSpacingFixer()
+        self.bold_surrounding_fixer = BoldSurroundingSpacingFixer()
         self.errors_found = False
     
     def get_staged_files(self) -> List[Path]:
@@ -1042,6 +1241,22 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.bold_spacing_fixer.fix_file(file_path):
                         print(f"  ✓ 粗体边界空格问题已修复")
+                        has_issues = False  # 已修复
+        
+        # 粗体文本周围空格检查（根据配置决定）
+        if FEATURE_CONFIG.get('bold_surrounding_spacing', True):
+            bold_surrounding_issues = self.bold_surrounding_fixer.scan_file(file_path)
+            if bold_surrounding_issues:
+                has_issues = True
+                for issue_type, issue_list in bold_surrounding_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.bold_surrounding_fixer.fix_file(file_path):
+                        print(f"  ✓ 粗体文本周围空格问题已修复")
                         has_issues = False  # 已修复
         
         if not has_issues:
