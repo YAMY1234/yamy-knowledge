@@ -132,7 +132,10 @@ class MarkdownPunctuationFixer:
             original_line = line
             for chinese_punct, english_punct in self.punctuation_fixes.items():
                 if chinese_punct in line:
-                    line = line.replace(chinese_punct, english_punct)
+                    if chinese_punct == '：':  # 特殊处理中文冒号，替换为英文冒号+空格
+                        line = line.replace('：', ': ')
+                    else:
+                        line = line.replace(chinese_punct, english_punct)
             
             # 修复粗体标签后缺少空格的问题
             def add_space_after_colon(match):
@@ -151,7 +154,10 @@ class MarkdownPunctuationFixer:
             original_count = content.count(chinese_punct)
             fixed_count = fixed_content.count(chinese_punct)
             if original_count > fixed_count:
-                changes.append(f"替换 {original_count - fixed_count} 个 '{chinese_punct}' -> '{english_punct}'")
+                if chinese_punct == '：':
+                    changes.append(f"替换 {original_count - fixed_count} 个 '{chinese_punct}' -> '{english_punct} '")
+                else:
+                    changes.append(f"替换 {original_count - fixed_count} 个 '{chinese_punct}' -> '{english_punct}'")
         
         # 统计粗体标签修复
         original_bold_issues = len(self.bold_label_pattern.findall(content))

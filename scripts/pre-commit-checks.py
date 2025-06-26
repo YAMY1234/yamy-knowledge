@@ -16,10 +16,21 @@ python3 scripts/pre-commit-checks.py [--fix] [--staged-only]
 --fix: 自动修复问题
 --staged-only: 只检查已暂存的文件
 
-标题结构检查功能:
+功能配置:
+可以通过修改脚本开头的 FEATURE_CONFIG 字典来启用/禁用各项功能：
+- mdx_table_check: MDX表格检查（默认开启）
+- punctuation_check: 中文标点检查（默认开启）
+- mdx_syntax_check: MDX语法特殊字符检查（默认开启）
+- heading_structure_check: 标题结构检查（默认关闭）
+- heading_level_adjustment: 标题级别调整/批量增减#（默认关闭）
+- bold_to_heading_conversion: 粗体转标题功能（默认关闭）
+- heading_downgrade: 一级标题降级功能（默认关闭）
+
+标题结构检查功能（已默认关闭）:
 - 检测长文档缺少二级标题层级结构的问题
 - 检测和修复错误的粗体转义格式 (\*\*文本\*\*)
 - 自动将常见的粗体文本模式转换为合适的标题格式
+- 全局调整标题级别（批量增减#号）
 """
 
 import os
@@ -28,6 +39,22 @@ import subprocess
 import argparse
 from pathlib import Path
 from typing import List, Set
+
+# ======================== 功能开关配置 ========================
+# 在这里配置各种检查功能的开关
+FEATURE_CONFIG = {
+    # MDX 和标点检查（推荐保持开启）
+    'mdx_table_check': True,           # MDX表格检查
+    'punctuation_check': True,         # 中文标点检查
+    'mdx_syntax_check': True,          # MDX语法特殊字符检查
+    
+    # 标题相关检查（可以关闭）
+    'heading_structure_check': False,   # 标题结构检查（缺少二级标题等）
+    'heading_level_adjustment': False,  # 标题级别调整（批量增减#）
+    'bold_to_heading_conversion': False, # 粗体转标题功能
+    'heading_downgrade': False,         # 一级标题降级功能
+}
+# ============================================================
 
 # 导入修复器类
 sys.path.append(str(Path(__file__).parent))
@@ -166,6 +193,10 @@ class MarkdownHeadingChecker:
         import re
         issues = {}
         
+        # 如果标题结构检查被禁用，直接返回空结果
+        if not FEATURE_CONFIG.get('heading_structure_check', False):
+            return issues
+        
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -184,25 +215,26 @@ class MarkdownHeadingChecker:
                     lines = content.split('\n')
             
             # 检查是否有一级标题需要降级（排除代码块）
-            content_lines = lines if content_start == 0 else content.split('\n')
-            has_h1 = False
-            in_code_block = False
-            for line in content_lines:
-                stripped = line.strip()
-                # 检查代码块边界
-                if stripped.startswith('```'):
-                    in_code_block = not in_code_block
-                    continue
-                # 跳过代码块内的内容
-                if in_code_block:
-                    continue
-                # 检查一级标题
-                if re.match(r'^# [^#]', stripped):  # 匹配 "# " 开头但后面不是 #
-                    has_h1 = True
-                    break
-            
-            if has_h1:
-                issues['需要降级一级标题'] = [(0, "检测到一级标题，需要降级以支持导航栏显示")]
+            if FEATURE_CONFIG.get('heading_downgrade', False):
+                content_lines = lines if content_start == 0 else content.split('\n')
+                has_h1 = False
+                in_code_block = False
+                for line in content_lines:
+                    stripped = line.strip()
+                    # 检查代码块边界
+                    if stripped.startswith('```'):
+                        in_code_block = not in_code_block
+                        continue
+                    # 跳过代码块内的内容
+                    if in_code_block:
+                        continue
+                    # 检查一级标题
+                    if re.match(r'^# [^#]', stripped):  # 匹配 "# " 开头但后面不是 #
+                        has_h1 = True
+                        break
+                
+                if has_h1:
+                    issues['需要降级一级标题'] = [(0, "检测到一级标题，需要降级以支持导航栏显示")]
             
             # 只对长文档进行其他检查
             if len(content) >= self.long_content_threshold:
@@ -244,12 +276,14 @@ class MarkdownHeadingChecker:
                         escaped_bold_count += 1
                         escaped_bold_lines.append((line_num + content_start // len('\n'), stripped))
                     
-                    # 更严格地检查可能应该是标题的粗体文本
-                    # 只有当粗体文本独占一行，且不是以冒号结尾的概念定义时，才认为可能是标题
-                    if (re.match(r'^\*\*[^*]+\*\*$', stripped) and  # 独行的粗体文本
-                        not re.match(r'^\*\*[^*]+:\*\*', stripped) and  # 排除概念定义格式（以冒号结尾）
-                        not line.strip().endswith(':')):  # 排除其他以冒号结尾的情况
-                        potential_headings.append((line_num + content_start // len('\n'), stripped))
+                    # 检查可能应该是标题的粗体文本（仅当功能启用时）
+                    if FEATURE_CONFIG.get('bold_to_heading_conversion', False):
+                        # 更严格地检查可能应该是标题的粗体文本
+                        # 只有当粗体文本独占一行，且不是以冒号结尾的概念定义时，才认为可能是标题
+                        if (re.match(r'^\*\*[^*]+\*\*$', stripped) and  # 独行的粗体文本
+                            not re.match(r'^\*\*[^*]+:\*\*', stripped) and  # 排除概念定义格式（以冒号结尾）
+                            not line.strip().endswith(':')):  # 排除其他以冒号结尾的情况
+                            potential_headings.append((line_num + content_start // len('\n'), stripped))
                 
                 # 判断问题
                 if h1_count > 3 and h2_count < self.min_h2_headings:
@@ -258,8 +292,8 @@ class MarkdownHeadingChecker:
                 if escaped_bold_count > 0:
                     issues['错误的粗体转义格式'] = escaped_bold_lines[:5]  # 最多显示5个
                 
-                # 只有在有足够多的符合条件的粗体文本时才报告问题
-                if len(potential_headings) > 3:
+                # 只有在功能启用且有足够多的符合条件的粗体文本时才报告问题
+                if FEATURE_CONFIG.get('bold_to_heading_conversion', False) and len(potential_headings) > 3:
                     issues['可能应该改为标题的粗体文本'] = potential_headings[:5]  # 最多显示5个
         
         except Exception as e:
@@ -271,20 +305,27 @@ class MarkdownHeadingChecker:
         """修复文件中的标题结构问题"""
         import re
         
+        # 如果标题结构检查被禁用，直接返回False
+        if not FEATURE_CONFIG.get('heading_structure_check', False):
+            return False
+        
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
             original_content = content
             
-            # 修复内容，但排除代码块
-            content = self._fix_content_excluding_code_blocks(content)
+            # 修复内容，但排除代码块（根据配置决定）
+            if FEATURE_CONFIG.get('bold_to_heading_conversion', False):
+                content = self._fix_content_excluding_code_blocks(content)
             
-            # 降级一级标题（如果存在）
-            content = self._downgrade_headings_if_needed(content)
+            # 降级一级标题（根据配置决定）
+            if FEATURE_CONFIG.get('heading_downgrade', False):
+                content = self._downgrade_headings_if_needed(content)
             
-            # 全局调整标题级别
-            content, _ = self._adjust_heading_levels_globally(content)
+            # 全局调整标题级别（根据配置决定）
+            if FEATURE_CONFIG.get('heading_level_adjustment', False):
+                content, _ = self._adjust_heading_levels_globally(content)
             
             if content != original_content:
                 if backup:
@@ -325,15 +366,16 @@ class MarkdownHeadingChecker:
             # 修复粗体后缺少空格的问题
             line = re.sub(r'\*\*([^*]+):\*\*([^\s])', r'**\1:** \2', line)
             
-            # 将特定的粗体标记模式转换为标题
-            # 匹配如 "**实现细节:**" 这样在单独行上的模式，转换为二级标题
-            line = re.sub(r'^\*\*([^*]*(?:实现|特点|优势|机制|影响|解析|场景|支持|优化|问题|细节|方法|策略|原理)[^*]*)\*\*\s*$', r'## \1', line)
-            
-            # 匹配如 "**概念:**" 这样带冒号的模式
-            line = re.sub(r'^\*\*([^*]+):\*\*\s*$', r'## \1', line)
-            
-            # 清理转换后可能产生的多余冒号
-            line = re.sub(r'^## ([^:]+):\s*$', r'## \1', line)
+            # 将特定的粗体标记模式转换为标题（根据配置决定）
+            if FEATURE_CONFIG.get('bold_to_heading_conversion', False):
+                # 匹配如 "**实现细节:**" 这样在单独行上的模式，转换为二级标题
+                line = re.sub(r'^\*\*([^*]*(?:实现|特点|优势|机制|影响|解析|场景|支持|优化|问题|细节|方法|策略|原理)[^*]*)\*\*\s*$', r'## \1', line)
+                
+                # 匹配如 "**概念:**" 这样带冒号的模式
+                line = re.sub(r'^\*\*([^*]+):\*\*\s*$', r'## \1', line)
+                
+                # 清理转换后可能产生的多余冒号
+                line = re.sub(r'^## ([^:]+):\s*$', r'## \1', line)
             
             lines[i] = line
         
@@ -511,71 +553,75 @@ class PreCommitChecker:
         
         has_issues = False
         
-        # MDX表格检查
-        mdx_issues = self.mdx_fixer.scan_file(file_path)
-        if mdx_issues:
-            has_issues = True
-            for issue_type, issue_list in mdx_issues.items():
-                print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
-                if not fix_mode:
-                    for line_num, line_content in issue_list[:3]:
-                        print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
-            
-            if fix_mode:
-                if self.mdx_fixer.fix_file(file_path):
-                    print(f"  ✓ MDX表格问题已修复")
-                    has_issues = False  # 已修复
+        # MDX表格检查（根据配置决定）
+        if FEATURE_CONFIG.get('mdx_table_check', True):
+            mdx_issues = self.mdx_fixer.scan_file(file_path)
+            if mdx_issues:
+                has_issues = True
+                for issue_type, issue_list in mdx_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.mdx_fixer.fix_file(file_path):
+                        print(f"  ✓ MDX表格问题已修复")
+                        has_issues = False  # 已修复
         
-        # 中文标点检查
-        punct_issues = self.punct_fixer.scan_file(file_path)
-        if punct_issues:
-            has_issues = True
-            for issue_type, issue_list in punct_issues.items():
-                print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
-                if not fix_mode:
-                    for line_num, line_content in issue_list[:3]:
-                        print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
-            
-            if fix_mode:
-                if self.punct_fixer.fix_file(file_path):
-                    print(f"  ✓ 中文标点问题已修复")
-                    # 重新扫描确认修复效果
-                    recheck_issues = self.punct_fixer.scan_file(file_path)
-                    if not recheck_issues:
-                        has_issues = False  # 确认已修复
-                    else:
-                        print(f"  ⚠️ 修复后仍有问题，可能在代码块中")
-                        has_issues = True
+        # 中文标点检查（根据配置决定）
+        if FEATURE_CONFIG.get('punctuation_check', True):
+            punct_issues = self.punct_fixer.scan_file(file_path)
+            if punct_issues:
+                has_issues = True
+                for issue_type, issue_list in punct_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.punct_fixer.fix_file(file_path):
+                        print(f"  ✓ 中文标点问题已修复")
+                        # 重新扫描确认修复效果
+                        recheck_issues = self.punct_fixer.scan_file(file_path)
+                        if not recheck_issues:
+                            has_issues = False  # 确认已修复
+                        else:
+                            print(f"  ⚠️ 修复后仍有问题，可能在代码块中")
+                            has_issues = True
         
-        # MDX语法检查
-        mdx_syntax_issues = self.mdx_syntax_checker.scan_file(file_path)
-        if mdx_syntax_issues:
-            has_issues = True
-            for issue_type, issue_list in mdx_syntax_issues.items():
-                print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
-                if not fix_mode:
-                    for line_num, line_content in issue_list[:3]:
-                        print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
-            
-            if fix_mode:
-                if self.mdx_syntax_checker.fix_file(file_path):
-                    print(f"  ✓ MDX语法问题已修复")
-                    has_issues = False  # 已修复
+        # MDX语法检查（根据配置决定）
+        if FEATURE_CONFIG.get('mdx_syntax_check', True):
+            mdx_syntax_issues = self.mdx_syntax_checker.scan_file(file_path)
+            if mdx_syntax_issues:
+                has_issues = True
+                for issue_type, issue_list in mdx_syntax_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.mdx_syntax_checker.fix_file(file_path):
+                        print(f"  ✓ MDX语法问题已修复")
+                        has_issues = False  # 已修复
         
-        # 标题结构检查
-        heading_issues = self.heading_checker.scan_file(file_path)
-        if heading_issues:
-            has_issues = True
-            for issue_type, issue_list in heading_issues.items():
-                print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
-                if not fix_mode:
-                    for line_num, line_content in issue_list[:3]:
-                        print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
-            
-            if fix_mode:
-                if self.heading_checker.fix_file(file_path):
-                    print(f"  ✓ 标题结构问题已修复")
-                    has_issues = False  # 已修复
+        # 标题结构检查（根据配置决定）
+        if FEATURE_CONFIG.get('heading_structure_check', False):
+            heading_issues = self.heading_checker.scan_file(file_path)
+            if heading_issues:
+                has_issues = True
+                for issue_type, issue_list in heading_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.heading_checker.fix_file(file_path):
+                        print(f"  ✓ 标题结构问题已修复")
+                        has_issues = False  # 已修复
         
         if not has_issues:
             print(f"  ✓ 无问题")
