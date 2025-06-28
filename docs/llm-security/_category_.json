@@ -1,0 +1,8 @@
+{
+  "label": "LLM安全与风险",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "探索LLM的安全风险、攻击防护与安全对齐。"
+  }
+}

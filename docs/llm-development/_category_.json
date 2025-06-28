@@ -1,0 +1,8 @@
+{
+  "label": "LLM开发实践",
+  "position": 9,
+  "link": {
+    "type": "generated-index",
+    "description": "掌握LLM的开发流程、训练技巧与MLOps实践。"
+  }
+}

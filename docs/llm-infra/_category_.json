@@ -1,0 +1,8 @@
+{
+  "label": "LLM基础设施",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "学习LLM的基础设施建设，包括训练、推理优化与部署。"
+  }
+}

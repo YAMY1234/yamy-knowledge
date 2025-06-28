@@ -1,0 +1,8 @@
+{
+  "label": "推理优化详解",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "深入了解LLM推理优化的各种策略与技术。"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "label": "智能代理与工具使用",
+  "position": 7,
+  "link": {
+    "type": "generated-index",
+    "description": "学习智能代理的设计、工具调用与多代理系统。"
+  }
+}
