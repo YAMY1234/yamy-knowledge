@@ -1,0 +1,8 @@
+{
+  "label": "内存与I/O优化",
+  "position": 9,
+  "link": {
+    "type": "generated-index",
+    "description": "系统级内存管理与I/O优化技术。"
+  }
+}

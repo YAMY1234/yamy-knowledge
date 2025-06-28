@@ -1,0 +1,8 @@
+{
+  "label": "GPU编程与CUDA优化",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "description": "深入GPU编程、CUDA内核优化与性能调优技术。"
+  }
+}

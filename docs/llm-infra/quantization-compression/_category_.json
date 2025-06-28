@@ -1,0 +1,8 @@
+{
+  "label": "量化与压缩技术",
+  "position": 8,
+  "link": {
+    "type": "generated-index",
+    "description": "深度量化技术与模型压缩的底层实现。"
+  }
+}
