@@ -1244,7 +1244,7 @@ class EscapedBoldFixer:
     def __init__(self):
         import re
         # 匹配转义的粗体格式 \*\*...\*\*
-        self.escaped_bold_pattern = re.compile(r'\\?\*\\?\*([^*]+?)\\?\*\\?\*')
+        self.escaped_bold_pattern = re.compile(r'\\\\\*\\\\\*([^*]+?)\\\\\*\\\\\*')
         
     def scan_file(self, file_path):
         """扫描文件中的转义粗体格式问题"""
@@ -1326,7 +1326,7 @@ class EscapedBoldFixer:
                 
                 # 在非代码块内容中进行替换
                 # 将 \*\*...\*\* 替换为 **...**
-                temp_line = re.sub(r'\\?\*\\?\*([^*]+?)\\?\*\\?\*', r'**\1**', temp_line)
+                temp_line = re.sub(r'\\\\\*\\\\\*([^*]+?)\\\\\*\\\\\*', r'**\1**', temp_line)
                 
                 # 还原行内代码块
                 for i, code_block in enumerate(inline_code_parts):
@@ -1389,13 +1389,14 @@ class PreCommitChecker:
         """检查单个文件，返回是否有问题"""
         print(f"检查: {file_path}")
         
-        has_issues = False
+        total_issues_found = 0
+        total_issues_fixed = 0
         
         # MDX表格检查（根据配置决定）
         if FEATURE_CONFIG.get('mdx_table_check', True):
             mdx_issues = self.mdx_fixer.scan_file(file_path)
             if mdx_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in mdx_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1405,13 +1406,13 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.mdx_fixer.fix_file(file_path):
                         print(f"  ✓ MDX表格问题已修复")
-                        has_issues = False  # 已修复
+                        total_issues_fixed += 1
         
         # 中文标点检查（根据配置决定）
         if FEATURE_CONFIG.get('punctuation_check', True):
             punct_issues = self.punct_fixer.scan_file(file_path)
             if punct_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in punct_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1424,16 +1425,15 @@ class PreCommitChecker:
                         # 重新扫描确认修复效果
                         recheck_issues = self.punct_fixer.scan_file(file_path)
                         if not recheck_issues:
-                            has_issues = False  # 确认已修复
+                            total_issues_fixed += 1
                         else:
                             print(f"  ⚠️ 修复后仍有问题，可能在代码块中")
-                            has_issues = True
         
         # MDX语法检查（根据配置决定）
         if FEATURE_CONFIG.get('mdx_syntax_check', True):
             mdx_syntax_issues = self.mdx_syntax_checker.scan_file(file_path)
             if mdx_syntax_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in mdx_syntax_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1443,13 +1443,13 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.mdx_syntax_checker.fix_file(file_path):
                         print(f"  ✓ MDX语法问题已修复")
-                        has_issues = False  # 已修复
+                        total_issues_fixed += 1
         
         # 标题结构检查（根据配置决定）
         if FEATURE_CONFIG.get('heading_structure_check', False):
             heading_issues = self.heading_checker.scan_file(file_path)
             if heading_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in heading_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1459,61 +1459,13 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.heading_checker.fix_file(file_path):
                         print(f"  ✓ 标题结构问题已修复")
-                        has_issues = False  # 已修复
-        
-        # Details块标题转换检查（根据配置决定）
-        if FEATURE_CONFIG.get('details_heading_conversion', True):
-            details_issues = self.details_converter.scan_file(file_path)
-            if details_issues:
-                has_issues = True
-                for issue_type, issue_list in details_issues.items():
-                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
-                    if not fix_mode:
-                        for line_num, line_content in issue_list[:3]:
-                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
-                
-                if fix_mode:
-                    if self.details_converter.fix_file(file_path):
-                        print(f"  ✓ Details块标题格式已修复")
-                        has_issues = False  # 已修复
-        
-        # 粗体边界空格检查（根据配置决定）
-        if FEATURE_CONFIG.get('bold_spacing_fix', True):
-            bold_spacing_issues = self.bold_spacing_fixer.scan_file(file_path)
-            if bold_spacing_issues:
-                has_issues = True
-                for issue_type, issue_list in bold_spacing_issues.items():
-                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
-                    if not fix_mode:
-                        for line_num, line_content in issue_list[:3]:
-                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
-                
-                if fix_mode:
-                    if self.bold_spacing_fixer.fix_file(file_path):
-                        print(f"  ✓ 粗体边界空格问题已修复")
-                        has_issues = False  # 已修复
-        
-        # 粗体文本周围空格检查（根据配置决定）
-        if FEATURE_CONFIG.get('bold_surrounding_spacing', True):
-            bold_surrounding_issues = self.bold_surrounding_fixer.scan_file(file_path)
-            if bold_surrounding_issues:
-                has_issues = True
-                for issue_type, issue_list in bold_surrounding_issues.items():
-                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
-                    if not fix_mode:
-                        for line_num, line_content in issue_list[:3]:
-                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
-                
-                if fix_mode:
-                    if self.bold_surrounding_fixer.fix_file(file_path):
-                        print(f"  ✓ 粗体文本周围空格问题已修复")
-                        has_issues = False  # 已修复
+                        total_issues_fixed += 1
         
         # 数学公式格式检查（根据配置决定）
         if FEATURE_CONFIG.get('math_formula_check', True):
             math_formula_issues = self.math_formula_checker.scan_file(file_path)
             if math_formula_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in math_formula_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1523,13 +1475,13 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.math_formula_checker.fix_file(file_path):
                         print(f"  ✓ 数学公式格式已修复")
-                        has_issues = False  # 已修复
+                        total_issues_fixed += 1
         
         # 转义粗体格式检查（根据配置决定）- 必须在其他粗体检查之前执行
         if FEATURE_CONFIG.get('escaped_bold_fix', True):
             escaped_bold_issues = self.escaped_bold_fixer.scan_file(file_path)
             if escaped_bold_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in escaped_bold_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1539,13 +1491,34 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.escaped_bold_fixer.fix_file(file_path):
                         print(f"  ✓ 转义粗体格式已修复")
-                        has_issues = False  # 已修复
+                        # 重新扫描确认修复效果
+                        recheck_issues = self.escaped_bold_fixer.scan_file(file_path)
+                        if not recheck_issues:
+                            total_issues_fixed += 1
+                        else:
+                            print(f"  ⚠️ 转义粗体格式修复后仍有问题")
+        
+        # Details块标题转换检查（根据配置决定）
+        if FEATURE_CONFIG.get('details_heading_conversion', True):
+            details_issues = self.details_converter.scan_file(file_path)
+            if details_issues:
+                total_issues_found += 1
+                for issue_type, issue_list in details_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.details_converter.fix_file(file_path):
+                        print(f"  ✓ Details块标题格式已修复")
+                        total_issues_fixed += 1
         
         # 粗体边界空格检查（根据配置决定）
         if FEATURE_CONFIG.get('bold_spacing_fix', True):
             bold_spacing_issues = self.bold_spacing_fixer.scan_file(file_path)
             if bold_spacing_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in bold_spacing_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1555,13 +1528,13 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.bold_spacing_fixer.fix_file(file_path):
                         print(f"  ✓ 粗体边界空格问题已修复")
-                        has_issues = False  # 已修复
+                        total_issues_fixed += 1
         
         # 粗体文本周围空格检查（根据配置决定）
         if FEATURE_CONFIG.get('bold_surrounding_spacing', True):
             bold_surrounding_issues = self.bold_surrounding_fixer.scan_file(file_path)
             if bold_surrounding_issues:
-                has_issues = True
+                total_issues_found += 1
                 for issue_type, issue_list in bold_surrounding_issues.items():
                     print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
                     if not fix_mode:
@@ -1571,12 +1544,19 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.bold_surrounding_fixer.fix_file(file_path):
                         print(f"  ✓ 粗体文本周围空格问题已修复")
-                        has_issues = False  # 已修复
+                        total_issues_fixed += 1
         
-        if not has_issues:
+        # 判断最终结果
+        remaining_issues = total_issues_found - total_issues_fixed
+        
+        if total_issues_found == 0:
             print(f"  ✓ 无问题")
+        elif fix_mode and remaining_issues == 0:
+            print(f"  ✅ 所有 {total_issues_found} 个问题已修复")
+        elif fix_mode and remaining_issues > 0:
+            print(f"  ⚠️ 还有 {remaining_issues} 个问题未修复（共 {total_issues_found} 个）")
         
-        return has_issues
+        return remaining_issues > 0
     
     def run_checks(self, staged_only: bool = False, fix_mode: bool = False) -> int:
         """运行所有检查"""
