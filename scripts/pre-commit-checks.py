@@ -6,8 +6,9 @@ Pre-commit 检查脚本
 1. MDX表格数字格式检查
 2. 中文标点检查
 3. MDX语法特殊字符检查
-4. Markdown标题结构检查
-5. 支持Git hook使用
+4. 数学公式格式检查（\$转$$）
+5. Markdown标题结构检查
+6. 支持Git hook使用
 
 使用方法:
 python3 scripts/pre-commit-checks.py [--fix] [--staged-only]
@@ -21,6 +22,8 @@ python3 scripts/pre-commit-checks.py [--fix] [--staged-only]
 - mdx_table_check: MDX表格检查（默认开启）
 - punctuation_check: 中文标点检查（默认开启）
 - mdx_syntax_check: MDX语法特殊字符检查（默认开启）
+- math_formula_check: 数学公式格式检查，将\$...\$转换为$$...$$格式（默认开启）
+- escaped_bold_fix: 转义粗体格式修复，将\*\*转换为**（默认开启）
 - heading_structure_check: 标题结构检查（默认关闭）
 - heading_level_adjustment: 标题级别调整/批量增减#（默认关闭）
 - bold_to_heading_conversion: 粗体转标题功能（默认关闭）
@@ -34,6 +37,16 @@ python3 scripts/pre-commit-checks.py [--fix] [--staged-only]
 - 检测和修复错误的粗体转义格式 (\*\*文本\*\*)
 - 自动将常见的粗体文本模式转换为合适的标题格式
 - 全局调整标题级别（批量增减#号）
+
+数学公式格式检查功能（已默认开启）:
+- 检测并修复\$...\$格式的数学公式，转换为$$...$$格式
+- 避免修改代码块中的内容
+- 保护行内代码块不被修改
+
+转义粗体格式修复功能（已默认开启）:
+- 检测并修复转义的粗体格式\*\*...\*\*，转换为**...**格式
+- 避免修改代码块中的内容
+- 在其他粗体格式检查之前执行
 """
 
 import os
@@ -50,6 +63,8 @@ FEATURE_CONFIG = {
     'mdx_table_check': True,           # MDX表格检查
     'punctuation_check': True,         # 中文标点检查
     'mdx_syntax_check': True,          # MDX语法特殊字符检查
+    'math_formula_check': True,        # 数学公式格式检查（\$转$$）
+    'escaped_bold_fix': True,          # 转义粗体格式修复（\*\*转**）
     
     # 标题相关检查（可以关闭）
     'heading_structure_check': False,   # 标题结构检查（缺少二级标题等）
@@ -1105,6 +1120,239 @@ class BoldSurroundingSpacingFixer:
         return text
 
 
+class MathFormulaChecker:
+    """数学公式格式检查器，检查并修复\$...\$格式为$$...$$格式"""
+    
+    def __init__(self):
+        # 匹配单个$包围的数学公式的正则表达式
+        # 避免匹配代码块中的内容和已经是$$格式的公式
+        import re
+        # 匹配 \$...\$ 格式的公式（转义的$符号），但不匹配已经是$$...$$格式的
+        # 使用负向前瞻和负向后瞻确保前后没有$符号
+        self.escaped_formula_pattern = re.compile(r'(?<!\$)\\?\$([^$]+?)\\?\$(?!\$)')
+        
+    def scan_file(self, file_path):
+        """扫描文件中的数学公式格式问题"""
+        import re
+        issues = {}
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            in_code_block = False
+            code_block_pattern = re.compile(r'^```')
+            
+            for line_num, line in enumerate(lines, 1):
+                # 检测代码块边界
+                if code_block_pattern.match(line):
+                    in_code_block = not in_code_block
+                    continue
+                
+                # 跳过代码块内的内容
+                if in_code_block:
+                    continue
+                
+                # 跳过行内代码
+                line_without_inline_code = re.sub(r'`[^`]*`', '', line)
+                
+                # 查找 \$...\$ 格式的公式
+                matches = self.escaped_formula_pattern.findall(line_without_inline_code)
+                if matches:
+                    issue_type = "数学公式格式需要从\\$...\\$转换为$$...$$"
+                    if issue_type not in issues:
+                        issues[issue_type] = []
+                    for match in matches:
+                        issues[issue_type].append((line_num, line.strip()))
+        
+        except Exception as e:
+            print(f"警告: 无法扫描文件 {file_path} ({e})")
+        
+        return issues
+    
+    def fix_file(self, file_path, backup=False):
+        """修复文件中的数学公式格式问题"""
+        import re
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            original_content = content
+            
+            # 分割内容为行，逐行处理以避免修改代码块
+            lines = content.split('\n')
+            in_code_block = False
+            code_block_pattern = re.compile(r'^```')
+            
+            fixed_lines = []
+            for line in lines:
+                # 检测代码块边界
+                if code_block_pattern.match(line):
+                    in_code_block = not in_code_block
+                    fixed_lines.append(line)
+                    continue
+                
+                # 跳过代码块内的内容
+                if in_code_block:
+                    fixed_lines.append(line)
+                    continue
+                
+                # 保护行内代码块
+                inline_code_parts = []
+                temp_line = line
+                
+                # 提取行内代码块
+                inline_code_pattern = re.compile(r'`[^`]*`')
+                for match in inline_code_pattern.finditer(line):
+                    placeholder = f"__INLINE_CODE_{len(inline_code_parts)}__"
+                    inline_code_parts.append(match.group())
+                    temp_line = temp_line.replace(match.group(), placeholder, 1)
+                
+                # 在非代码块内容中进行替换
+                # 将 \$...\$ 替换为 $$...$$，但不匹配已经是$$...$$格式的
+                temp_line = re.sub(r'(?<!\$)\\?\$([^$]+?)\\?\$(?!\$)', r'$$\1$$', temp_line)
+                
+                # 还原行内代码块
+                for i, code_block in enumerate(inline_code_parts):
+                    temp_line = temp_line.replace(f"__INLINE_CODE_{i}__", code_block)
+                
+                fixed_lines.append(temp_line)
+            
+            fixed_content = '\n'.join(fixed_lines)
+            
+            if fixed_content != original_content:
+                if backup:
+                    backup_path = str(file_path) + '.bak'
+                    with open(backup_path, 'w', encoding='utf-8') as f:
+                        f.write(original_content)
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(fixed_content)
+                
+                return True
+        
+        except Exception as e:
+            print(f"警告: 无法修复文件 {file_path} ({e})")
+        
+        return False
+
+
+class EscapedBoldFixer:
+    """转义粗体格式修复器，将\*\*...\*\*格式转换为**...**格式"""
+    
+    def __init__(self):
+        import re
+        # 匹配转义的粗体格式 \*\*...\*\*
+        self.escaped_bold_pattern = re.compile(r'\\?\*\\?\*([^*]+?)\\?\*\\?\*')
+        
+    def scan_file(self, file_path):
+        """扫描文件中的转义粗体格式问题"""
+        import re
+        issues = {}
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            in_code_block = False
+            code_block_pattern = re.compile(r'^```')
+            
+            for line_num, line in enumerate(lines, 1):
+                # 检测代码块边界
+                if code_block_pattern.match(line):
+                    in_code_block = not in_code_block
+                    continue
+                
+                # 跳过代码块内的内容
+                if in_code_block:
+                    continue
+                
+                # 跳过行内代码
+                line_without_inline_code = re.sub(r'`[^`]*`', '', line)
+                
+                # 查找转义的粗体格式
+                matches = self.escaped_bold_pattern.findall(line_without_inline_code)
+                if matches:
+                    issue_type = "转义粗体格式需要从\\*\\*...\\*\\*转换为**...**"
+                    if issue_type not in issues:
+                        issues[issue_type] = []
+                    for match in matches:
+                        issues[issue_type].append((line_num, line.strip()))
+        
+        except Exception as e:
+            print(f"警告: 无法扫描文件 {file_path} ({e})")
+        
+        return issues
+    
+    def fix_file(self, file_path, backup=False):
+        """修复文件中的转义粗体格式问题"""
+        import re
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            original_content = content
+            
+            # 分割内容为行，逐行处理以避免修改代码块
+            lines = content.split('\n')
+            in_code_block = False
+            code_block_pattern = re.compile(r'^```')
+            
+            fixed_lines = []
+            for line in lines:
+                # 检测代码块边界
+                if code_block_pattern.match(line):
+                    in_code_block = not in_code_block
+                    fixed_lines.append(line)
+                    continue
+                
+                # 跳过代码块内的内容
+                if in_code_block:
+                    fixed_lines.append(line)
+                    continue
+                
+                # 保护行内代码块
+                inline_code_parts = []
+                temp_line = line
+                
+                # 提取行内代码块
+                inline_code_pattern = re.compile(r'`[^`]*`')
+                for match in inline_code_pattern.finditer(line):
+                    placeholder = f"__INLINE_CODE_{len(inline_code_parts)}__"
+                    inline_code_parts.append(match.group())
+                    temp_line = temp_line.replace(match.group(), placeholder, 1)
+                
+                # 在非代码块内容中进行替换
+                # 将 \*\*...\*\* 替换为 **...**
+                temp_line = re.sub(r'\\?\*\\?\*([^*]+?)\\?\*\\?\*', r'**\1**', temp_line)
+                
+                # 还原行内代码块
+                for i, code_block in enumerate(inline_code_parts):
+                    temp_line = temp_line.replace(f"__INLINE_CODE_{i}__", code_block)
+                
+                fixed_lines.append(temp_line)
+            
+            fixed_content = '\n'.join(fixed_lines)
+            
+            if fixed_content != original_content:
+                if backup:
+                    backup_path = str(file_path) + '.bak'
+                    with open(backup_path, 'w', encoding='utf-8') as f:
+                        f.write(original_content)
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(fixed_content)
+                
+                return True
+        
+        except Exception as e:
+            print(f"警告: 无法修复文件 {file_path} ({e})")
+        
+        return False
+
+
 class PreCommitChecker:
     def __init__(self):
         self.mdx_fixer = MDXTableFixer()
@@ -1114,6 +1362,8 @@ class PreCommitChecker:
         self.details_converter = DetailsHeadingConverter()
         self.bold_spacing_fixer = BoldSpacingFixer()
         self.bold_surrounding_fixer = BoldSurroundingSpacingFixer()
+        self.math_formula_checker = MathFormulaChecker()
+        self.escaped_bold_fixer = EscapedBoldFixer()
         self.errors_found = False
     
     def get_staged_files(self) -> List[Path]:
@@ -1225,6 +1475,70 @@ class PreCommitChecker:
                 if fix_mode:
                     if self.details_converter.fix_file(file_path):
                         print(f"  ✓ Details块标题格式已修复")
+                        has_issues = False  # 已修复
+        
+        # 粗体边界空格检查（根据配置决定）
+        if FEATURE_CONFIG.get('bold_spacing_fix', True):
+            bold_spacing_issues = self.bold_spacing_fixer.scan_file(file_path)
+            if bold_spacing_issues:
+                has_issues = True
+                for issue_type, issue_list in bold_spacing_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.bold_spacing_fixer.fix_file(file_path):
+                        print(f"  ✓ 粗体边界空格问题已修复")
+                        has_issues = False  # 已修复
+        
+        # 粗体文本周围空格检查（根据配置决定）
+        if FEATURE_CONFIG.get('bold_surrounding_spacing', True):
+            bold_surrounding_issues = self.bold_surrounding_fixer.scan_file(file_path)
+            if bold_surrounding_issues:
+                has_issues = True
+                for issue_type, issue_list in bold_surrounding_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.bold_surrounding_fixer.fix_file(file_path):
+                        print(f"  ✓ 粗体文本周围空格问题已修复")
+                        has_issues = False  # 已修复
+        
+        # 数学公式格式检查（根据配置决定）
+        if FEATURE_CONFIG.get('math_formula_check', True):
+            math_formula_issues = self.math_formula_checker.scan_file(file_path)
+            if math_formula_issues:
+                has_issues = True
+                for issue_type, issue_list in math_formula_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.math_formula_checker.fix_file(file_path):
+                        print(f"  ✓ 数学公式格式已修复")
+                        has_issues = False  # 已修复
+        
+        # 转义粗体格式检查（根据配置决定）- 必须在其他粗体检查之前执行
+        if FEATURE_CONFIG.get('escaped_bold_fix', True):
+            escaped_bold_issues = self.escaped_bold_fixer.scan_file(file_path)
+            if escaped_bold_issues:
+                has_issues = True
+                for issue_type, issue_list in escaped_bold_issues.items():
+                    print(f"  ❌ {issue_type}: {len(issue_list)} 个问题")
+                    if not fix_mode:
+                        for line_num, line_content in issue_list[:3]:
+                            print(f"    第{line_num}行: {line_content[:60]}{'...' if len(line_content) > 60 else ''}")
+                
+                if fix_mode:
+                    if self.escaped_bold_fixer.fix_file(file_path):
+                        print(f"  ✓ 转义粗体格式已修复")
                         has_issues = False  # 已修复
         
         # 粗体边界空格检查（根据配置决定）
